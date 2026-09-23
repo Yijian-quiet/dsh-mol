@@ -1,10 +1,6 @@
 # chemworkbench · 本地优先的化学工作台
 
-> **English**: A local-first chemistry workbench for AI agents — SMILES validation with
-> human-readable diagnostics, structure drawing, properties, format conversion,
-> standardization and batch cleaning. Pure RDKit, no network, no API key.
-> Exposes itself as a **stdio MCP server**, so DeepSeek Harness / Claude Code / Codex
-> can use it directly.
+[English](README.en.md) | 中文
 
 把化学里最高频的那点基础活，做成**AI agent 能可靠调用**的本地工具：
 
@@ -13,9 +9,9 @@
 纯 RDKit，**零网络、零 API key、零外部服务**。以 stdio MCP 服务的形式暴露，
 所以 DSH / Claude Code / Codex 都能直接用。
 
-![批量画图（中文图注）](docs/demo.png)
+![批量画图（中文图注）](docs/monomers.png)
 
-*`draw_grid` 输出：中文图注自行排版；坏条目被跳过但逐条记录原因（`C1CC` → 环未闭合）。*
+*`draw_grid` 输出：12 个单体成图，2 条坏数据被跳过 —— **原因逐条记录，没有静默丢弃**。*
 
 ---
 
@@ -24,7 +20,7 @@
 | | |
 |---|---|
 | 版本 | `0.0.1`（早期，API 可能变） |
-| 测试 | 29 个核心用例 + 11 项自测 + MCP 协议级冒烟，**全绿** |
+| 测试 | 34 个核心用例 + 11 项自测 + MCP 协议级冒烟，**全绿** |
 | 发布 | ⏳ 尚未发布到 PyPI / GitHub |
 | 依赖 | `rdkit`（核心）；`mcp`（仅 MCP 适配层需要） |
 | 许可 | MIT |
@@ -133,6 +129,17 @@ dsh --profile headless --patch dsh/chemworkbench.cordis.yml "校验 C1CC"
 （`dsh/chemworkbench.cordis.yml` 与 `dsh-bundle/cordis.patch.yml` 是同一件事的
 两种写法：前者写死本机绝对路径、适合手动；后者走环境变量、适合分发。）
 
+### 图片怎么进到界面里
+
+`chem_draw_molecule` / `chem_draw_grid` **返回的是文件路径**，不是内联二进制。
+在挂载了 `standard` agent preset 的环境（**`dsh web` 就是**）里，模型可以接着调用
+`present`，把这张图声明为**原生交付物**，界面上就会出现交付卡片。
+
+> 实测结论：`present` 由 **agent preset** 挂载（`standard` / `ptc` / `cordis` 三个预设），
+> **不在 profile 层** —— 所以 `dump-config` 里看不到它。
+> `dsh web` profile 挂了 `agent-presets`，因此有 `present`；
+> **`headless` 没挂 presets，所以一次性任务里没有这个工具**（这是预期行为，不是 bug）。
+
 ## 工具一览
 
 | 工具 | 作用 |
@@ -159,6 +166,18 @@ cc.draw("CCO", atom_indices=True)         # {'path': '…/CCO.png', …}
 cc.standardize("CC(=O)[O-].[Na+]")        # {'output': 'CC(=O)O', 'changes': [...]}
 cc.batch_clean(["CCO", "C1CC"])           # {'ok': 1, 'failed': 1, 'failed_items': [...]}
 ```
+
+## 实例：清洗一张"脏"的单体表
+
+[`examples/monomer_cleanup.py`](examples/monomer_cleanup.py) 拿一张刻意做脏的单体表
+（同一分子两种写法、一个钠盐、一个环未闭合错字、一个价键超限、一个离谱电荷）跑完整条链：
+
+```bash
+python3 examples/monomer_cleanup.py
+```
+
+它会报出 `通过 11 · 警告 1 · 失败 2`、把重复项合并、逐步展示去盐与中和的每一步，
+并把能画的 12 个结构画出来、把跳过的 2 个连原因一起列出来。
 
 ## 测试
 

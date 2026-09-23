@@ -115,7 +115,7 @@ def dedupe(smiles_list: list[str], *, standardize_first: bool = False) -> dict[s
             key = r.canonical
         if key in seen:
             duplicates.append({"index": i, "smiles": smi,
-                               "duplicate_of_index": seen[key], "key": key})
+                               "duplicate_of_index": seen[key], "canonical": key})
         else:
             seen[key] = i
             unique.append({"index": i, "input": smi, "canonical": key})

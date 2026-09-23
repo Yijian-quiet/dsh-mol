@@ -86,6 +86,9 @@ def chem_draw_molecule(
       atom_indices: 标注原子编号（讨论具体原子时很有用）
       highlight_smarts: 用 SMARTS 高亮子结构，如 "c1ccccc1" 高亮苯环
       out: 输出目录，默认 CHEMWORKBENCH_OUT 或 ./chemworkbench-out
+
+    画完若要让用户看到图，**请再用 `present` 工具把这个路径声明为交付物**
+    （在 dsh web 等挂载了 standard 预设的环境里可用；headless 一次性任务没有该工具）。
     """
     return cc.draw(
         smiles, out=out or None, fmt=fmt, width=width, height=height,
@@ -103,7 +106,8 @@ def chem_draw_grid(
 ) -> dict[str, Any]:
     """把多个分子拼成一张网格图，返回图片路径。
 
-    无法解析的条目会被跳过，但会在 skipped 里**逐条给出原因**——不会静默丢数据。"""
+    无法解析的条目会被跳过，但会在 skipped 里**逐条给出原因**——不会静默丢数据。
+    画完若要让用户看到图，请再用 `present` 工具把这个路径声明为交付物。"""
     return cc.draw_grid(smiles_list, out=out or None, mols_per_row=mols_per_row,
                         filename=filename)
 

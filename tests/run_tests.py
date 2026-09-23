@@ -280,6 +280,16 @@ def _():
 
 
 # ---------------------------------------------------------------- batch
+@case("dedupe: 字段名一致（duplicates 与 items 都用 canonical，不混用 key）")
+def _():
+    r = cc.dedupe([ASPIRIN, "OC(=O)c1ccccc1OC(C)=O"])
+    eq(len(r["duplicates"]), 1, "重复数")
+    d = r["duplicates"][0]
+    true("canonical" in d, f"duplicates 条目应有 canonical 字段：{list(d)}")
+    true("key" not in d, f"不应混用 key 这个别名：{list(d)}")
+    true("canonical" in r["items"][0], "items 条目也应有 canonical")
+
+
 @case("batch_clean: 混合输入计数正确并写出 CSV")
 def _():
     with tempfile.TemporaryDirectory() as d:
