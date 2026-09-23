@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chemworkbench"
+version = "0.0.1"
+description = "本地优先的化学基础工具台：SMILES 校验/画分子/性质/格式互转/标准化/批量清洗，纯 RDKit，零网络"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["chemistry", "rdkit", "smiles", "cheminformatics", "mcp", "deepseek-harness", "ai4s"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = ["rdkit>=2023.9"]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+dev = ["mcp>=1.0"]
+
+[project.scripts]
+chemworkbench-mcp = "chemworkbench_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/Yijian-quiet/chemworkbench"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
