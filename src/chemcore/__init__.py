@@ -13,7 +13,15 @@
     draw / draw_grid              —— 画分子
     convert / convert_many        —— 格式互转
     standardize / dedupe          —— 结构标准化与去重
+    substructure_match / similarity —— 子结构匹配与相似度
     batch_clean / read_smiles_column —— 批量清洗
+
+导入风格（有个已知的坑，与 ``datetime.datetime`` 同类）：
+    ``draw`` / ``convert`` / ``standardize`` 既是**子模块名**，也是本包导出的
+    **函数名**。因此 ``import chemcore.draw as D`` 拿到的是**函数**而不是模块。
+    正常使用请写 ``from chemcore import draw`` 或 ``chemcore.draw(...)``；
+    只有在需要 monkeypatch 子模块内部（如测试里替换 ``find_cjk_font``）时，
+    才用 ``importlib.import_module("chemcore.draw")`` 取模块本体。
 """
 
 from .batch import batch_clean, read_smiles_column

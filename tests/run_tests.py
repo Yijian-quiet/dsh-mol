@@ -275,6 +275,44 @@ def _():
         eq(cc.read_smiles_column(p2), ["CCO", ASPIRIN], "TXT 一行一个")
 
 
+@case("draw: 中文图注不出现豆腐块（有字体则渲染，无字体则显式告警）")
+def _():
+    with tempfile.TemporaryDirectory() as d:
+        r = cc.draw(ASPIRIN, out=d, legend="阿司匹林 aspirin")
+        has_font = "legend_font" in r
+        has_warn = any("字体" in w for w in r.get("warnings", []))
+        true(has_font or has_warn,
+             f"要么写上图注并报告字体，要么明确告警；实际 {r}")
+        if has_font:
+            true(os.path.getsize(r["path"]) > 1000, "带中文图注的 PNG 应有内容")
+
+
+@case("draw_grid: 中文图注走自绘路径")
+def _():
+    with tempfile.TemporaryDirectory() as d:
+        r = cc.draw_grid([ASPIRIN, "CCO"], out=d, legends=["阿司匹林", "乙醇"],
+                         filename="cjk.png")
+        eq(r["count"], 2, "画出 2 个")
+        true(os.path.getsize(r["path"]) > 1000, "文件非空")
+
+
+@case("draw: 缺中文字体时不留豆腐块（返回 warnings 字段）")
+def _():
+    # 注意：``chemcore.draw`` 既是子模块名、也是本包导出的函数名，
+    # ``import chemcore.draw as D`` 拿到的是函数。要拿模块必须走 importlib。
+    import importlib
+    D = importlib.import_module("chemcore.draw")
+    real = D.find_cjk_font
+    D.find_cjk_font = lambda: None          # 模拟无中文字体环境
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            r = D.draw_grid([ASPIRIN], out=d, legends=["阿司匹林"], filename="x.png")
+            true(any("字体" in w for w in r.get("warnings", [])),
+                 f"应显式告警而不是默默产出豆腐块：{r}")
+    finally:
+        D.find_cjk_font = real
+
+
 # ---------------------------------------------------------------- 汇总
 if __name__ == "__main__":
     total = len(PASS) + len(FAIL)

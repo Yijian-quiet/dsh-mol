@@ -26,6 +26,75 @@ from .validate import check
 
 _SAFE = re.compile(r"[^A-Za-z0-9_.-]+")
 
+# RDKit 自带字体不含 CJK；且系统上的中文字体多是 .ttc 字体集合，交给 RDKit
+# （FreeType）会渲染成豆腐块 □□□□（本机实测）。因此中文图注一律由我们用 PIL
+# 自行排版，不依赖 RDKit 的字体处理。
+_CJK_FONT_CANDIDATES = (
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/usr/share/fonts/truetype/arphic/uming.ttc",
+    "/System/Library/Fonts/PingFang.ttc",
+    "C:/Windows/Fonts/msyh.ttc",
+    "C:/Windows/Fonts/simhei.ttf",
+)
+
+
+def find_cjk_font() -> str | None:
+    """找一个能渲染中文的字体文件；找不到返回 None。"""
+    for p in _CJK_FONT_CANDIDATES:
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def has_non_ascii(text: str | None) -> bool:
+    """图注里是否含非 ASCII（即需要 CJK 字体）。"""
+    return bool(text) and any(ord(ch) > 127 for ch in text)
+
+
+def _pil_font(path: str, size: int):
+    from PIL import ImageFont
+
+    try:
+        return ImageFont.truetype(path, size)
+    except Exception:
+        try:  # .ttc 是字体集合，需要指定 face 索引
+            return ImageFont.truetype(path, size, index=0)
+        except Exception:
+            return None
+
+
+def _annotate_legend(path: Path, text: str, *, size: int = 16) -> tuple[str | None, bool]:
+    """给已落盘的 PNG 在底部补一行中文图注。
+
+    Returns:
+        ``(font_used_or_None, ok)``。找不到字体时返回 ``(None, False)``，
+        调用方应据此**显式告警**，而不是交出缺字/豆腐块的图。
+    """
+    font_path = find_cjk_font()
+    if not font_path:
+        return None, False
+    try:
+        from PIL import Image, ImageDraw
+
+        font = _pil_font(font_path, size)
+        if font is None:
+            return None, False
+        img = Image.open(path).convert("RGB")
+        draw = ImageDraw.Draw(img)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        canvas = Image.new("RGB", (img.width, img.height + th + 14), "white")
+        canvas.paste(img, (0, 0))
+        d2 = ImageDraw.Draw(canvas)
+        d2.text(((img.width - tw) / 2 - bbox[0], img.height + 8 - bbox[1]),
+                text, fill="black", font=font)
+        canvas.save(path)
+        return font_path, True
+    except Exception:
+        return None, False
+
 
 def out_dir(base: str | os.PathLike[str] | None = None) -> Path:
     """解析输出目录并确保存在。"""
@@ -94,16 +163,20 @@ def draw(
 
     atoms, bonds = _highlight(mol, highlight_smarts)
 
+    # 中文图注不能交给 RDKit（会渲染成豆腐块），PNG 走"先画图、再用 PIL 补图注"
+    legend_via_pil = fmt == "png" and has_non_ascii(legend)
+    rdkit_legend = "" if legend_via_pil else (legend or "")
+
     if fmt == "png":
         d = rdMolDraw2D.MolDraw2DCairo(width, height)
     else:
         d = rdMolDraw2D.MolDraw2DSVG(width, height)
     opts = d.drawOptions()
     opts.addAtomIndices = atom_indices
-    if legend:
+    if rdkit_legend:
         opts.legendFontSize = 14
     rdMolDraw2D.PrepareAndDrawMolecule(
-        d, mol, legend=legend or "",
+        d, mol, legend=rdkit_legend,
         highlightAtoms=sorted(atoms) if atoms else None,
         highlightBonds=sorted(bonds) if bonds else None,
     )
@@ -113,7 +186,8 @@ def draw(
 
     path = out_dir(out) / f"{_safe_name(smiles)}.{fmt}"
     path.write_bytes(data)
-    return {
+
+    result: dict[str, Any] = {
         "path": str(path.resolve()),
         "format": fmt,
         "bytes": len(data),
@@ -122,6 +196,54 @@ def draw(
         "highlighted": bool(atoms),
         "level": r.level,
     }
+    if legend_via_pil:
+        font_used, ok = _annotate_legend(path, legend or "")
+        result["bytes"] = path.stat().st_size
+        if ok:
+            result["legend_font"] = font_used
+        else:
+            result["warnings"] = [
+                "图注含中文，但系统找不到可用的中文字体 → PNG 里没有写上图注。"
+                "请安装中文字体（如 fonts-noto-cjk），或改用 ASCII 图注。"]
+    return result
+
+
+def _compose_grid_pil(
+    mols: list,
+    legends: list[str],
+    mols_per_row: int,
+    sub_img_size: tuple[int, int],
+):
+    """自己拼网格：为了中文图注（RDKit 的字体处理会出豆腐块）。"""
+    import io as _io
+    from math import ceil
+
+    from PIL import Image, ImageDraw
+
+    cols = max(1, min(mols_per_row, len(mols)))
+    rows = ceil(len(mols) / cols)
+    cw, ch = sub_img_size
+    pad = 28 if legends else 0
+    font_path = find_cjk_font()
+    font = _pil_font(font_path, 16) if (legends and font_path) else None
+
+    canvas = Image.new("RGB", (cols * cw, rows * (ch + pad)), "white")
+    draw = ImageDraw.Draw(canvas)
+    for i, mol in enumerate(mols):
+        d = rdMolDraw2D.MolDraw2DCairo(cw, ch)
+        rdMolDraw2D.PrepareAndDrawMolecule(d, mol)
+        d.FinishDrawing()
+        cell = Image.open(_io.BytesIO(d.GetDrawingText())).convert("RGB")
+        row, col = divmod(i, cols)
+        x, y = col * cw, row * (ch + pad)
+        canvas.paste(cell, (x, y))
+        text = legends[i] if i < len(legends) else ""
+        if text and font:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw = bbox[2] - bbox[0]
+            draw.text((x + (cw - tw) / 2 - bbox[0], y + ch + 6 - bbox[1]),
+                      text, fill="black", font=font)
+    return canvas
 
 
 def draw_grid(
@@ -136,8 +258,9 @@ def draw_grid(
     """把多个分子拼成一张网格图（适合做批量汇报 / 论文附图）。
 
     无法解析的条目会被跳过，并在 ``skipped`` 里逐条给出原因 —— 批量场景下
-    「静默丢数据」比报错更危险。
+    「静默丢数据」比报错更危险。图注支持中文（自行排版，不依赖 RDKit 字体）。
     """
+    legends_list = list(legends) if legends is not None else []
     mols, kept_legends, skipped = [], [], []
     for i, smi in enumerate(smiles_list):
         r = check(smi)
@@ -147,23 +270,37 @@ def draw_grid(
             continue
         mols.append(mol_from_smiles(smi))
         if legends is not None:
-            legends_list = list(legends)
             kept_legends.append(legends_list[i] if i < len(legends_list) else "")
     if not mols:
         raise ValueError("没有任何可画的分子（全部解析失败）")
 
-    img = Draw.MolsToGridImage(
-        mols, molsPerRow=mols_per_row, subImgSize=sub_img_size,
-        legends=kept_legends or None,
-    )
+    warnings: list[str] = []
     path = out_dir(out) / filename
-    if hasattr(img, "save"):
+
+    if kept_legends and any(has_non_ascii(t) for t in kept_legends):
+        if find_cjk_font() is None:
+            warnings.append(
+                "图注含中文，但系统找不到中文字体 → 网格图里将没有图注。"
+                "请安装中文字体（如 fonts-noto-cjk）或改用 ASCII 图注。")
+            kept_legends = []
+        img = _compose_grid_pil(mols, kept_legends, mols_per_row, sub_img_size)
         img.save(path)
-    else:  # 某些后端返回 SVG 字符串
-        path.write_text(img)
-    return {
+    else:
+        img = Draw.MolsToGridImage(
+            mols, molsPerRow=mols_per_row, subImgSize=sub_img_size,
+            legends=kept_legends or None,
+        )
+        if hasattr(img, "save"):
+            img.save(path)
+        else:  # 某些后端返回 SVG 字符串
+            path.write_text(img)
+
+    result = {
         "path": str(path.resolve()),
         "count": len(mols),
         "skipped": skipped,
         "bytes": path.stat().st_size,
     }
+    if warnings:
+        result["warnings"] = warnings
+    return result
