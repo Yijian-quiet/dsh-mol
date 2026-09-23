@@ -270,3 +270,16 @@ docs/                  images
 ## License
 
 MIT
+
+## Requirement worth knowing
+
+**The MCP Python SDK must be 1.x**:
+
+```bash
+pip install 'mcp>=1.0,<2'
+```
+
+SDK **2.x renamed `FastMCP` to `MCPServer`** with breaking API changes. Our `[mcp]`
+extra pins `<2`, and if you end up with 2.x installed, `dsh-mol-mcp` tells you
+exactly what to do instead of dumping a traceback — this trap was found by CI on a
+clean runner, not guessed.

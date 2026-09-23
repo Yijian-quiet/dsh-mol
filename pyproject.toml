@@ -18,8 +18,9 @@ classifiers = [
 dependencies = ["rdkit>=2023.9"]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0"]
-dev = ["mcp>=1.0"]
+# 必须 1.x：2.x 把 FastMCP 改名 MCPServer 且 API 破坏性变更（CI 实测踩到）
+mcp = ["mcp>=1.0,<2"]
+dev = ["mcp>=1.0,<2"]
 
 [project.scripts]
 dsh-mol-mcp = "dsh_mol_mcp.server:main"

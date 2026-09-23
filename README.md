@@ -279,3 +279,15 @@ dsh/                   手动叠加用的 patch（写死本机路径）
 tests/                 零依赖测试 + MCP 协议冒烟
 docs/                  演示图
 ```
+
+## 环境要求（一个真实的坑）
+
+**MCP Python SDK 必须 1.x**：
+
+```bash
+pip install 'mcp>=1.0,<2'
+```
+
+SDK **2.x 把 `FastMCP` 改名成了 `MCPServer`**，API 有破坏性变更。
+我们的 `[mcp]` extra 已钉住 `<2`；如果你手工装了 2.x，`dsh-mol-mcp` 会**明确告诉你怎么办**
+（而不是甩一条 traceback）—— 这个坑是 CI 在干净环境里实测出来的，不是推测。

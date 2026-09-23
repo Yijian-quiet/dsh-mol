@@ -23,7 +23,20 @@ from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from mcp.server.fastmcp import FastMCP  # noqa: E402
+try:
+    from mcp.server.fastmcp import FastMCP  # noqa: E402
+except ModuleNotFoundError as _exc:  # pragma: no cover - 依赖版本不符时的友好出路
+    # MCP Python SDK 2.x 把 FastMCP 改名为 MCPServer，API 有破坏性变更。
+    # 如果只写 pyproject 的版本约束，用户拿到的是一条难懂的 traceback；
+    # 这里明确告诉他怎么办（同一个原则：失败要说人话）。
+    if "fastmcp" in str(_exc):
+        raise SystemExit(
+            "本插件需要 MCP Python SDK **1.x**（FastMCP）。\n"
+            "检测到你装的是 2.x：2.x 把 FastMCP 改名为 MCPServer，且 API 有破坏性变更。\n"
+            "修复：pip install 'mcp>=1.0,<2'\n"
+            f"（原始错误：{_exc}）"
+        ) from _exc
+    raise
 
 import chemcore as cc  # noqa: E402
 
