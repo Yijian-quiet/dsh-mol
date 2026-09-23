@@ -44,8 +44,8 @@ def _payload(result) -> dict:
 async def main() -> int:
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "chemworkbench_mcp.server"],
-        env={**os.environ, "PYTHONPATH": SRC, "CHEMWORKBENCH_OUT": "/tmp/chemwb-mcp-out"},
+        args=["-m", "dsh_mol_mcp.server"],
+        env={**os.environ, "PYTHONPATH": SRC, "MOL_OUT": "/tmp/chemwb-mcp-out"},
     )
     failures: list[str] = []
     async with stdio_client(params) as (read, write):

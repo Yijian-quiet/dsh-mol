@@ -396,19 +396,19 @@ def _():
         cc.set_lang(original)
 
 
-@case("i18n: 环境变量 CHEMWORKBENCH_LANG 生效")
+@case("i18n: 环境变量 MOL_LANG 生效")
 def _():
     import os
-    old_env = os.environ.get("CHEMWORKBENCH_LANG")
+    old_env = os.environ.get("MOL_LANG")
     try:
         cc.set_lang(None)                       # 先清覆盖，让环境变量说话
-        os.environ["CHEMWORKBENCH_LANG"] = "en"
+        os.environ["MOL_LANG"] = "en"
         eq(cc.current_lang(), "en", "env 解析")
         true("Empty input" in cc.check("").diagnostics[0].message, "env 驱动的英文")
     finally:
-        os.environ.pop("CHEMWORKBENCH_LANG", None)
+        os.environ.pop("MOL_LANG", None)
         if old_env is not None:
-            os.environ["CHEMWORKBENCH_LANG"] = old_env
+            os.environ["MOL_LANG"] = old_env
         cc.set_lang(None)
 
 

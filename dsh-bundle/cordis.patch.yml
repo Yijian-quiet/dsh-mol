@@ -1,6 +1,6 @@
-# chemworkbench 的 DSH 组合包（bundle）层。
+# dsh-mol 的 DSH 组合包（bundle）层。
 #
-# 它只贡献配置、不含 JS 代码：把 chemworkbench 的 **stdio MCP 服务** 挂进 DSH 的
+# 它只贡献配置、不含 JS 代码：把 dsh-mol 的 **stdio MCP 服务** 挂进 DSH 的
 # MCP 客户端（@deepseek-ai/dsh-mcp-client），于是模型侧会出现
 # `mcp__chem__chem_check_smiles` 这类工具。
 #
@@ -9,19 +9,19 @@
 #   因此这里用「PATH 上的可执行文件 + 环境变量覆盖」来保持可移植。
 #
 # 前置条件（二选一）：
-#   A) 正式安装： pip install 'chemworkbench[mcp]'   → PATH 上会有 chemworkbench-mcp
-#   B) 源码运行： export CHEMWORKBENCH_MCP_COMMAND=python3
-#                export CHEMWORKBENCH_MCP_ARGS='-m chemworkbench_mcp.server'
-#                export PYTHONPATH=/path/to/chemworkbench/src
+#   A) 正式安装： pip install 'dsh-mol[mcp]'   → PATH 上会有 dsh-mol-mcp
+#   B) 源码运行： export MOL_MCP_COMMAND=python3
+#                export MOL_MCP_ARGS='-m dsh_mol_mcp.server'
+#                export PYTHONPATH=/path/to/dsh-mol/src
 #
-# 安装： dsh plugin --profile <name> add dsh-chemworkbench
+# 安装： dsh plugin --profile <name> add dsh-mol
 
 - insert:
-    - id: chemworkbench
+    - id: dsh-mol
       name: '@deepseek-ai/dsh-mcp-client'
       config:
         serverName: chem
         transport: stdio
-        command: !!js process.env.CHEMWORKBENCH_MCP_COMMAND ?? 'chemworkbench-mcp'
-        args: !!js (process.env.CHEMWORKBENCH_MCP_ARGS ?? '').split(' ').filter(Boolean)
+        command: !!js process.env.MOL_MCP_COMMAND ?? 'dsh-mol-mcp'
+        args: !!js (process.env.MOL_MCP_ARGS ?? '').split(' ').filter(Boolean)
         cwd: !!js process.cwd()

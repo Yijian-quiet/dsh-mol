@@ -170,7 +170,7 @@ def check(smiles: str, *, include_inchi_key: bool = False,
     Args:
         smiles: 待校验的 SMILES 字符串。
         include_inchi_key: 预留参数（当前不产出 InChIKey，见 convert 模块）。
-        lang: 诊断文案语言（``zh`` / ``en``）；缺省取 ``CHEMWORKBENCH_LANG`` 或 ``zh``。
+        lang: 诊断文案语言（``zh`` / ``en``）；缺省取 ``MOL_LANG`` 或 ``zh``。
               ``code`` 与语言无关，断言请用 code。
 
     Returns:

@@ -1,4 +1,4 @@
-# chemworkbench · a local-first chemistry workbench
+# dsh-mol · a local-first chemistry workbench
 
 [中文](README.md) | English
 
@@ -50,7 +50,7 @@ position** where one can be determined:
       "message": "成环编号 1 只出现了 1 次（最后一次在第 1 个字符）：成环数字必须成对出现，如 C1CC1 而不是 C1CC" }] }
 ```
 
-(Diagnostics are written in Chinese by default; set `CHEMWORKBENCH_LANG=en` for English.
+(Diagnostics are written in Chinese by default; set `MOL_LANG=en` for English.
 The `code` field is language-independent — assert on `code`, never on the message text.)
 
 ### 2. `MolFromSmiles("")` returns **an empty 0-atom molecule**, not `None`
@@ -85,13 +85,13 @@ pip install rdkit
 pip install -e ".[mcp]"
 
 # or run straight from source, no install
-export PYTHONPATH=/path/to/chemworkbench/src
+export PYTHONPATH=/path/to/dsh-mol/src
 ```
 
 Self-check (no MCP client required):
 
 ```bash
-PYTHONPATH=src python3 -m chemworkbench_mcp.server --selftest
+PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
 ```
 
 ## Use with DeepSeek Harness
@@ -99,8 +99,8 @@ PYTHONPATH=src python3 -m chemworkbench_mcp.server --selftest
 ### Option 1 (recommended): install the bundle
 
 ```bash
-pip install 'chemworkbench[mcp]'
-dsh plugin --profile <profile> add dsh-chemworkbench
+pip install 'dsh-mol[mcp]'
+dsh plugin --profile <profile> add dsh-mol
 ```
 
 The bundle lives in [`dsh-bundle/`](dsh-bundle/README.md) and **contributes
@@ -116,19 +116,19 @@ hard-coded absolutes, so one patch works across machines and install modes. See
 
 ```yaml
 - insert:
-    - id: chemworkbench
+    - id: dsh-mol
       name: '@deepseek-ai/dsh-mcp-client'
       config:
         serverName: chem
         transport: stdio
         command: python3
-        args: ['-m', 'chemworkbench_mcp.server']
+        args: ['-m', 'dsh_mol_mcp.server']
         env:
-          PYTHONPATH: /path/to/chemworkbench/src
+          PYTHONPATH: /path/to/dsh-mol/src
 ```
 
 ```bash
-dsh --profile headless --patch dsh/chemworkbench.cordis.yml "validate C1CC"
+dsh --profile headless --patch dsh/dsh-mol.cordis.yml "validate C1CC"
 ```
 
 Tools appear to the model as `mcp__chem__chem_check_smiles` and friends.
@@ -152,7 +152,7 @@ Bearer auth):
 ```bash
 export POLYMER_MCP_TOKEN=...        # token travels via env only, never in a file
 dsh --profile headless \
-    --patch dsh/chemworkbench.cordis.yml \
+    --patch dsh/dsh-mol.cordis.yml \
     --patch dsh/polymer-platform.cordis.yml \
     "predict Tg for PET"
 ```
@@ -240,7 +240,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real client, 
 
 ```
 src/chemcore/          pure RDKit core (single source of truth)
-src/chemworkbench_mcp/ stdio MCP adapter
+src/dsh_mol_mcp/ stdio MCP adapter
 dsh-bundle/            DSH bundle (configuration only, pointing at the MCP server)
 dsh/                   manual overlay patch (absolute paths, for hand-editing)
 tests/                 zero-dependency tests + MCP protocol smoke

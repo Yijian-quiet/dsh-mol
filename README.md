@@ -1,4 +1,4 @@
-# chemworkbench · 本地优先的化学工作台
+# dsh-mol · 本地优先的化学工作台
 
 [English](README.en.md) | 中文
 
@@ -71,7 +71,7 @@
 默认中文；英文环境设一个环境变量即可：
 
 ```bash
-export CHEMWORKBENCH_LANG=en        # zh（默认）/ en
+export MOL_LANG=en        # zh（默认）/ en
 ```
 
 ```python
@@ -96,13 +96,13 @@ pip install rdkit
 pip install -e ".[mcp]"
 
 # 如果不想装包，直接用源码跑
-export PYTHONPATH=/path/to/chemworkbench/src
+export PYTHONPATH=/path/to/dsh-mol/src
 ```
 
 自测（不需要任何 MCP 客户端）：
 
 ```bash
-PYTHONPATH=src python3 -m chemworkbench_mcp.server --selftest
+PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
 ```
 
 ## 接入 DeepSeek Harness（两种方式）
@@ -110,8 +110,8 @@ PYTHONPATH=src python3 -m chemworkbench_mcp.server --selftest
 ### 方式一（推荐）：装组合包
 
 ```bash
-pip install 'chemworkbench[mcp]'
-dsh plugin --profile <profile> add dsh-chemworkbench
+pip install 'dsh-mol[mcp]'
+dsh plugin --profile <profile> add dsh-mol
 ```
 
 组合包在 [`dsh-bundle/`](dsh-bundle/README.md)，**只贡献配置、不含 JS 代码**——
@@ -127,24 +127,24 @@ stdio 传输，**纯本地，不联网**。（只有"远端 MCP"才走网络—�
 
 ```yaml
 - insert:
-    - id: chemworkbench
+    - id: dsh-mol
       name: '@deepseek-ai/dsh-mcp-client'
       config:
         serverName: chem
         transport: stdio
         command: python3
-        args: ['-m', 'chemworkbench_mcp.server']
+        args: ['-m', 'dsh_mol_mcp.server']
         env:
-          PYTHONPATH: /path/to/chemworkbench/src
-          CHEMWORKBENCH_OUT: /path/to/out
+          PYTHONPATH: /path/to/dsh-mol/src
+          MOL_OUT: /path/to/out
 ```
 
 ```bash
-dsh --profile headless --patch dsh/chemworkbench.cordis.yml "校验 C1CC"
+dsh --profile headless --patch dsh/dsh-mol.cordis.yml "校验 C1CC"
 ```
 
 工具名会以 `mcp__chem__chem_check_smiles` 之类的形式出现在模型侧。
-（`dsh/chemworkbench.cordis.yml` 与 `dsh-bundle/cordis.patch.yml` 是同一件事的
+（`dsh/dsh-mol.cordis.yml` 与 `dsh-bundle/cordis.patch.yml` 是同一件事的
 两种写法：前者写死本机绝对路径、适合手动；后者走环境变量、适合分发。）
 
 ### 图片怎么进到界面里
@@ -169,7 +169,7 @@ dsh --profile headless --patch dsh/chemworkbench.cordis.yml "校验 C1CC"
 ```bash
 export POLYMER_MCP_TOKEN=...        # 令牌只走环境变量，不写进文件
 dsh --profile headless \
-    --patch dsh/chemworkbench.cordis.yml \
+    --patch dsh/dsh-mol.cordis.yml \
     --patch dsh/polymer-platform.cordis.yml \
     "用 polymer_predict 算一下 PET 的 Tg"
 ```
@@ -257,7 +257,7 @@ MIT
 
 ```
 src/chemcore/          纯 RDKit 核心（唯一的事实来源）
-src/chemworkbench_mcp/ stdio MCP 适配层
+src/dsh_mol_mcp/ stdio MCP 适配层
 dsh-bundle/            DSH 组合包（只贡献配置，指向上面的 MCP 服务）
 dsh/                   手动叠加用的 patch（写死本机路径）
 tests/                 零依赖测试 + MCP 协议冒烟

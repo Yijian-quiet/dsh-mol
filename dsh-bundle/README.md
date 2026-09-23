@@ -1,6 +1,6 @@
-# dsh-chemworkbench
+# dsh-mol
 
-把 **[chemworkbench](../README.md)**（本地优先的化学工作台）接入 **DeepSeek Harness**。
+把 **[dsh-mol](../README.md)**（本地优先的化学工作台）接入 **DeepSeek Harness**。
 
 装上之后，模型侧会多出这些工具：
 
@@ -23,25 +23,25 @@ mcp__chem__chem_batch_clean         批量清洗，逐条报告失败
 ## 这个包是什么
 
 它**只贡献配置、不含 JS 代码**：插入一条 `@deepseek-ai/dsh-mcp-client` 记录，
-指向 chemworkbench 的 stdio MCP 服务。工具实现全部在 Python 侧，避免两套实现漂移。
+指向 dsh-mol 的 stdio MCP 服务。工具实现全部在 Python 侧，避免两套实现漂移。
 
 ## 前置条件
 
-需要有 chemworkbench 的 MCP 服务可执行。二选一：
+需要有 dsh-mol 的 MCP 服务可执行。二选一：
 
 **A. 正式安装（推荐）**
 
 ```bash
-pip install 'chemworkbench[mcp]'
-# 之后 PATH 上会有 chemworkbench-mcp
+pip install 'dsh-mol[mcp]'
+# 之后 PATH 上会有 dsh-mol-mcp
 ```
 
 **B. 从源码运行**
 
 ```bash
-export CHEMWORKBENCH_MCP_COMMAND=python3
-export CHEMWORKBENCH_MCP_ARGS='-m chemworkbench_mcp.server'
-export PYTHONPATH=/path/to/chemworkbench/src
+export MOL_MCP_COMMAND=python3
+export MOL_MCP_ARGS='-m dsh_mol_mcp.server'
+export PYTHONPATH=/path/to/dsh-mol/src
 ```
 
 > 为什么用环境变量而不是写死路径：`cordis.patch.yml` 里用的是 `!!js` 表达式，
@@ -51,7 +51,7 @@ export PYTHONPATH=/path/to/chemworkbench/src
 ## 安装
 
 ```bash
-dsh plugin --profile <profile> add dsh-chemworkbench
+dsh plugin --profile <profile> add dsh-mol
 ```
 
 `dsh plugin add` 会把包加进该 profile 的 `dsh.profile.bundles`，无需手改 YAML。
@@ -65,11 +65,11 @@ dsh plugin --profile <profile> add dsh-chemworkbench
 
 ## 输出目录
 
-图片与报表默认写到 **dsh 进程的工作目录**下的 `chemworkbench-out/`
+图片与报表默认写到 **dsh 进程的工作目录**下的 `dsh-mol-out/`
 （patch 里 `cwd: !!js process.cwd()`）。要固定位置，导出环境变量：
 
 ```bash
-export CHEMWORKBENCH_OUT=/path/to/chem-out
+export MOL_OUT=/path/to/chem-out
 ```
 
 ## 诊断语言
@@ -77,7 +77,7 @@ export CHEMWORKBENCH_OUT=/path/to/chem-out
 默认中文。英文环境在**启动 dsh 之前**导出即可（stdio 桥会继承该变量）：
 
 ```bash
-export CHEMWORKBENCH_LANG=en     # zh（默认）/ en
+export MOL_LANG=en     # zh（默认）/ en
 ```
 
 `code` 字段与语言无关，别依赖文案做判断。
@@ -85,8 +85,8 @@ export CHEMWORKBENCH_LANG=en     # zh（默认）/ en
 ## 验证
 
 ```bash
-# 1) 组合后的配置里应出现一条 id: chemworkbench
-dsh --profile <profile> --dump-config | grep -A8 chemworkbench
+# 1) 组合后的配置里应出现一条 id: dsh-mol
+dsh --profile <profile> --dump-config | grep -A8 dsh-mol
 
 # 2) 实际调用（新开一个会话，别复用旧会话的上下文）
 dsh --profile headless "调用 chem 工具校验 C1CC，原样引用它给的中文错误原因"
@@ -99,7 +99,7 @@ dsh --profile headless "调用 chem 工具校验 C1CC，原样引用它给的中
 ## 卸载
 
 ```bash
-dsh plugin --profile <profile> remove dsh-chemworkbench
+dsh plugin --profile <profile> remove dsh-mol
 ```
 
 ## 许可

@@ -1,4 +1,4 @@
-"""chemworkbench MCP server —— 把 chemcore 的本地能力暴露给 DSH / 任何 MCP 客户端。
+"""dsh-mol MCP server —— 把 chemcore 的本地能力暴露给 DSH / 任何 MCP 客户端。
 
 传输：**stdio**，即完全本地的进程间通信，**不需要网络、不需要 API key**。
 （容易混淆的一点：只有"远端 MCP"才走网络；stdio MCP 是纯本地。）
@@ -6,13 +6,13 @@
 用法
 ----
 stdio（DSH / Claude Code / Codex 等 MCP 客户端）：
-    python3 -m chemworkbench_mcp.server
+    python3 -m dsh_mol_mcp.server
 
 自测（不经过任何客户端）：
-    python3 -m chemworkbench_mcp.server --selftest
+    python3 -m dsh_mol_mcp.server --selftest
 
 环境变量：
-    CHEMWORKBENCH_OUT   图片与报表的输出目录（默认 ./chemworkbench-out）
+    MOL_OUT   图片与报表的输出目录（默认 ./dsh-mol-out）
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 import chemcore as cc  # noqa: E402
 
 mcp = FastMCP(
-    "chemworkbench",
+    "dsh-mol",
     log_level="WARNING",          # stdio 下 stdout 是协议通道，日志越安静越好
     instructions=(
         "本地化学基础工具（纯 RDKit，无网络）。"
@@ -85,7 +85,7 @@ def chem_draw_molecule(
     参数：
       atom_indices: 标注原子编号（讨论具体原子时很有用）
       highlight_smarts: 用 SMARTS 高亮子结构，如 "c1ccccc1" 高亮苯环
-      out: 输出目录，默认 CHEMWORKBENCH_OUT 或 ./chemworkbench-out
+      out: 输出目录，默认 MOL_OUT 或 ./dsh-mol-out
 
     画完若要让用户看到图，**请再用 `present` 工具把这个路径声明为交付物**
     （在 dsh web 等挂载了 standard 预设的环境里可用；headless 一次性任务没有该工具）。

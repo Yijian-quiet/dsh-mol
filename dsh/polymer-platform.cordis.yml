@@ -1,4 +1,4 @@
-# 【可选】把高分子平台的"深度服务"接进 DSH —— 与 chemworkbench 的本地工具并存。
+# 【可选】把高分子平台的"深度服务"接进 DSH —— 与 dsh-mol 的本地工具并存。
 #
 # ⚠️ 这份 overlay **不属于公开的 dsh-bundle**：它依赖你自己平台上的私有服务
 #    （`polymer-ai-platform/mcp`，只绑回环的只读代理）。
@@ -12,7 +12,7 @@
 #     polymer_known_lookup   手册对照值查询
 #     dataset_list           数据资产清单
 #
-# 与本地工具的分工：**本地的 chemworkbench 负责"通用化学基础"（零网络、离线可用）；
+# 与本地工具的分工：**本地的 dsh-mol 负责"通用化学基础"（零网络、离线可用）；
 # 这里负责"领域深度"（需要平台在跑）**。平台不在时，`failOnStartupError: false`
 # 保证 DSH 照常启动，只是这 6 个工具不出现 —— 本地工具不受影响。
 #
@@ -27,7 +27,7 @@
 # 用法：
 #   set -a; . ~/dsh/env.sh; set +a
 #   export POLYMER_MCP_TOKEN=...
-#   dsh --profile headless --patch dsh/chemworkbench.cordis.yml \
+#   dsh --profile headless --patch dsh/dsh-mol.cordis.yml \
 #       --patch dsh/polymer-platform.cordis.yml "用 polymer_predict 算一下 PET 的 Tg"
 #
 # 长期生效：把下面的 insert 条目合并进

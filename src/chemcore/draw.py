@@ -7,7 +7,7 @@
 - 同一次结果可被反复引用、进版本库、写进论文；
 - MCP 传输层不必承载 base64。
 
-输出目录默认 ``$CHEMWORKBENCH_OUT``，否则 ``./chemworkbench-out``。
+输出目录默认 ``$MOL_OUT``，否则 ``./dsh-mol-out``。
 """
 
 from __future__ import annotations
@@ -99,7 +99,7 @@ def _annotate_legend(path: Path, text: str, *, size: int = 16) -> tuple[str | No
 
 def out_dir(base: str | os.PathLike[str] | None = None) -> Path:
     """解析输出目录并确保存在。"""
-    p = Path(base or os.environ.get("CHEMWORKBENCH_OUT", "chemworkbench-out"))
+    p = Path(base or os.environ.get("MOL_OUT", "dsh-mol-out"))
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -142,7 +142,7 @@ def draw(
 
     Args:
         smiles: 输入 SMILES。
-        out: 输出目录；缺省用 ``CHEMWORKBENCH_OUT`` 或 ``./chemworkbench-out``。
+        out: 输出目录；缺省用 ``MOL_OUT`` 或 ``./dsh-mol-out``。
         fmt: ``png`` 或 ``svg``。
         width/height: 像素尺寸。
         atom_indices: 是否标注原子编号。

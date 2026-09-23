@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chemworkbench"
+name = "dsh-mol"
 version = "0.0.1"
 description = "本地优先的化学基础工具台：SMILES 校验/画分子/性质/格式互转/标准化/批量清洗，纯 RDKit，零网络"
 readme = "README.md"
@@ -22,10 +22,10 @@ mcp = ["mcp>=1.0"]
 dev = ["mcp>=1.0"]
 
 [project.scripts]
-chemworkbench-mcp = "chemworkbench_mcp.server:main"
+dsh-mol-mcp = "dsh_mol_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/Yijian-quiet/chemworkbench"
+Homepage = "https://github.com/Yijian-quiet/dsh-mol"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

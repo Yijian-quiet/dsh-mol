@@ -9,7 +9,7 @@
 ----
 - ``code`` 永远与语言无关（`unclosed_ring` 之类），**文本**才随语言变。
   调用方与测试断言 code，不要断言文案。
-- 语言解析顺序：显式参数 > ``CHEMWORKBENCH_LANG`` 环境变量 > 默认 ``zh``。
+- 语言解析顺序：显式参数 > ``MOL_LANG`` 环境变量 > 默认 ``zh``。
   默认保持 zh（现有行为不变、可预测）；英文使用者设一个环境变量即可。
 - 缺翻译时**回退**到默认语言并保留 key 可见（``[missing:xxx]``），
   绝不抛异常 —— 报错信息本身不该再报错。
@@ -41,7 +41,7 @@ def current_lang() -> str:
     """当前生效语言。"""
     if _override:
         return _override
-    return _normalize(os.environ.get("CHEMWORKBENCH_LANG")) or DEFAULT_LANG
+    return _normalize(os.environ.get("MOL_LANG")) or DEFAULT_LANG
 
 
 def set_lang(lang: str | None) -> None:

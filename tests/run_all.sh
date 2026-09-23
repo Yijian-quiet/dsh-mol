@@ -11,7 +11,7 @@ python3 tests/run_tests.py || fail=1
 
 echo
 echo "== 2/3 服务自测 =="
-python3 -m chemworkbench_mcp.server --selftest || fail=1
+python3 -m dsh_mol_mcp.server --selftest || fail=1
 
 echo
 echo "== 3/3 MCP 协议冒烟 =="

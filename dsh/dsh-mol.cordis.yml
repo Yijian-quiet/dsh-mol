@@ -1,8 +1,8 @@
-# 把 chemworkbench 作为 MCP 服务挂进 DeepSeek Harness。
+# 把 dsh-mol 作为 MCP 服务挂进 DeepSeek Harness。
 #
 # 用法（不污染现有 profile，临时叠加）：
 #     set -a; . ~/dsh/env.sh; set +a
-#     dsh --profile headless --patch dsh/chemworkbench.cordis.yml "用 chem 工具校验 C1CC"
+#     dsh --profile headless --patch dsh/dsh-mol.cordis.yml "用 chem 工具校验 C1CC"
 #
 # 用法（长期生效）：把下面的 insert 条目合并进
 #     $DSH_HOME/cordis.patch.yml          —— 对本机所有 profile 生效
@@ -11,7 +11,7 @@
 # 注意：PYTHONPATH 必须指向本仓库的 src/；请改成你机器上的绝对路径。
 
 - insert:
-    - id: chemworkbench
+    - id: dsh-mol
       name: '@deepseek-ai/dsh-mcp-client'
       config:
         serverName: chem
@@ -19,8 +19,8 @@
         command: python3
         args:
           - '-m'
-          - 'chemworkbench_mcp.server'
+          - 'dsh_mol_mcp.server'
         env:
-          PYTHONPATH: '/home/zhangyijian/dsh-plugins/chemworkbench/src'
-          CHEMWORKBENCH_OUT: '/home/zhangyijian/dsh-plugins/chemworkbench/out'
-        cwd: '/home/zhangyijian/dsh-plugins/chemworkbench'
+          PYTHONPATH: '/home/zhangyijian/dsh-plugins/dsh-mol/src'
+          MOL_OUT: '/home/zhangyijian/dsh-plugins/dsh-mol/out'
+        cwd: '/home/zhangyijian/dsh-plugins/dsh-mol'
