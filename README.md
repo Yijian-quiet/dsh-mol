@@ -1,5 +1,8 @@
 # dsh-mol · 本地优先的化学工作台
 
+[![ci](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml/badge.svg)](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml)
+
+
 [English](README.en.md) | 中文
 
 把化学里最高频的那点基础活，做成**AI agent 能可靠调用**的本地工具：

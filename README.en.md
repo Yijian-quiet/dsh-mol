@@ -1,5 +1,8 @@
 # dsh-mol · a local-first chemistry workbench
 
+[![ci](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml/badge.svg)](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml)
+
+
 [中文](README.md) | English
 
 Turn the most frequent small chores in chemistry into tools an **AI agent can call
