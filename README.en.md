@@ -77,11 +77,18 @@ different kinds of "empty". This toolchain handles both at the domain layer.
 
 ## Install
 
+**Not yet on PyPI / npm — but you do not have to wait.** Install straight from
+GitHub (both paths verified):
+
 ```bash
 # core (RDKit only)
 pip install rdkit
 
-# this repo, including the MCP adapter
+# this repo including the MCP adapter — from git, no PyPI account needed
+pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
+
+# development mode (edits take effect immediately)
+git clone https://github.com/Yijian-quiet/dsh-mol.git && cd dsh-mol
 pip install -e ".[mcp]"
 
 # or run straight from source, no install
@@ -91,17 +98,29 @@ export PYTHONPATH=/path/to/dsh-mol/src
 Self-check (no MCP client required):
 
 ```bash
-PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
+dsh-mol-mcp --selftest
+# without installing: PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
 ```
 
 ## Use with DeepSeek Harness
 
 ### Option 1 (recommended): install the bundle
 
+**No npm account needed** — pnpm supports git subdirectories, so install straight
+from GitHub (verified):
+
 ```bash
-pip install 'dsh-mol[mcp]'
+dsh plugin --profile <profile> add 'github:Yijian-quiet/dsh-mol#path:dsh-bundle'
+```
+
+Once published to npm (not yet), this becomes:
+
+```bash
 dsh plugin --profile <profile> add dsh-mol
 ```
+
+> Prerequisite: an executable `dsh-mol-mcp` on the Python side (provided by the
+> install step above).
 
 The bundle lives in [`dsh-bundle/`](dsh-bundle/README.md) and **contributes
 configuration only, no JS code** — it inserts one `@deepseek-ai/dsh-mcp-client`

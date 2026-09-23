@@ -88,31 +88,47 @@ cc.check("C1CC", lang="en").diagnostics[0].message
 
 ## 安装
 
+**尚未发布到 PyPI / npm，但不必等它** —— 直接从 GitHub 装即可（两条路径都已实测）：
+
 ```bash
 # 核心（只需 RDKit）
 pip install rdkit
 
-# 本仓库（含 MCP 适配层）
+# 本仓库含 MCP 适配层：直接从 git 装（无需 PyPI 账号）
+pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
+
+# 开发模式（改代码即生效）
+git clone https://github.com/Yijian-quiet/dsh-mol.git && cd dsh-mol
 pip install -e ".[mcp]"
 
-# 如果不想装包，直接用源码跑
+# 或者完全不装包，直接用源码跑
 export PYTHONPATH=/path/to/dsh-mol/src
 ```
 
 自测（不需要任何 MCP 客户端）：
 
 ```bash
-PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
+dsh-mol-mcp --selftest
+# 未安装时：PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
 ```
 
 ## 接入 DeepSeek Harness（两种方式）
 
 ### 方式一（推荐）：装组合包
 
+**无需 npm 账号**——pnpm 支持 git 子目录，直接从 GitHub 装（已实测）：
+
 ```bash
-pip install 'dsh-mol[mcp]'
+dsh plugin --profile <profile> add 'github:Yijian-quiet/dsh-mol#path:dsh-bundle'
+```
+
+将来发布到 npm 后（尚未发布）则是：
+
+```bash
 dsh plugin --profile <profile> add dsh-mol
 ```
+
+> 前提：Python 侧有可执行的 `dsh-mol-mcp`（由上一节的安装提供）。
 
 组合包在 [`dsh-bundle/`](dsh-bundle/README.md)，**只贡献配置、不含 JS 代码**——
 它插入一条 `@deepseek-ai/dsh-mcp-client` 记录指向本仓库的 stdio 服务，
