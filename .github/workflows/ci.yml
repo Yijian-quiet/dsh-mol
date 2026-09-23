@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 = 开发机版本；3.12 = 较新的稳定版。声明的最低版本是 3.9。
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install rdkit 'mcp>=1.0'
+
+      - name: 核心用例（零依赖，不需要 pytest）
+        run: PYTHONPATH=src python3 tests/run_tests.py
+
+      - name: 服务自测
+        run: PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
+
+      - name: MCP 协议冒烟（真起服务、真列工具、真调工具）
+        run: PYTHONPATH=src python3 tests/mcp_smoke.py
+        env:
+          MOL_OUT: ${{ runner.temp }}/dsh-mol-out
+
+      - name: 实例脚本（脏单体表全链路）
+        run: python3 examples/monomer_cleanup.py
