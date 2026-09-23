@@ -50,7 +50,8 @@ position** where one can be determined:
       "message": "成环编号 1 只出现了 1 次（最后一次在第 1 个字符）：成环数字必须成对出现，如 C1CC1 而不是 C1CC" }] }
 ```
 
-(Diagnostics are currently written in Chinese; an English message table is on the roadmap.)
+(Diagnostics are written in Chinese by default; set `CHEMWORKBENCH_LANG=en` for English.
+The `code` field is language-independent — assert on `code`, never on the message text.)
 
 ### 2. `MolFromSmiles("")` returns **an empty 0-atom molecule**, not `None`
 

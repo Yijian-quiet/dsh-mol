@@ -72,6 +72,16 @@ dsh plugin --profile <profile> add dsh-chemworkbench
 export CHEMWORKBENCH_OUT=/path/to/chem-out
 ```
 
+## 诊断语言
+
+默认中文。英文环境在**启动 dsh 之前**导出即可（stdio 桥会继承该变量）：
+
+```bash
+export CHEMWORKBENCH_LANG=en     # zh（默认）/ en
+```
+
+`code` 字段与语言无关，别依赖文案做判断。
+
 ## 验证
 
 ```bash

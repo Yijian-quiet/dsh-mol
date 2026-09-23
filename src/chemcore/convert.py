@@ -12,6 +12,7 @@ from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
 from ._rdkit import mol_from_smiles
+from .i18n import t
 from .validate import check
 
 FORMATS = ("smiles", "inchi", "inchikey", "mol", "sdf", "formula")
@@ -51,12 +52,12 @@ def _to_mol(value: str, src: str):
     if src == "smiles":
         r = check(value)
         if not r.ok:
-            raise ValueError("SMILES 无法解析：" + "；".join(d.message for d in r.diagnostics))
+            raise ValueError(t("err_smiles_parse", "；".join(d.message for d in r.diagnostics)))
         return mol_from_smiles(value)
     if src == "inchi":
         mol = Chem.MolFromInchi(value.strip())
         if mol is None:
-            raise ValueError("InChI 无法解析（检查前缀 InChI= 与校验位）")
+            raise ValueError(t("err_inchi_parse"))
         return mol
     if src in ("mol", "sdf"):
         block = value
@@ -64,18 +65,18 @@ def _to_mol(value: str, src: str):
             block = block.split("$$$$")[0]
         mol = _mol_from_block(block)
         if mol is None:
-            raise ValueError("MOL/SDF 结构块无法解析（检查是否缺少标题行或原子块被截断）")
+            raise ValueError(t("err_molblock_parse"))
         return mol
     if src == "inchikey":
-        raise ValueError("InChIKey 是单向摘要，无法反推结构")
-    raise ValueError(f"不支持的源格式：{src}")
+        raise ValueError(t("err_inchikey_readonly"))
+    raise ValueError(t("err_bad_src_format", src))
 
 
 def convert(value: str, *, to: str, src: str | None = None) -> dict[str, Any]:
     """转换单个结构。``src`` 缺省时自动嗅探。"""
     to = to.lower()
     if to not in FORMATS:
-        raise ValueError(f"目标格式须是 {FORMATS} 之一，收到 {to!r}")
+        raise ValueError(t("err_bad_dst_format", FORMATS, repr(to)))
     src = (src or sniff(value)).lower()
 
     # InChIKey 是只读派生：直接从分子算，不需要先转成别的

@@ -27,6 +27,7 @@
 from .batch import batch_clean, read_smiles_column
 from .convert import FORMATS, convert, convert_many, sniff
 from .draw import draw, draw_grid, out_dir
+from .i18n import DEFAULT_LANG, SUPPORTED as SUPPORTED_LANGS, current_lang, set_lang, t
 from .props import properties
 from .search import find_similar, similarity, substructure_match
 from .standardize import dedupe, standardize
@@ -42,5 +43,7 @@ __all__ = [
     "standardize", "dedupe",
     "substructure_match", "similarity", "find_similar",
     "batch_clean", "read_smiles_column",
+    # 国际化：诊断文案随语言变，**code 不变**
+    "t", "set_lang", "current_lang", "DEFAULT_LANG", "SUPPORTED_LANGS",
     "__version__",
 ]

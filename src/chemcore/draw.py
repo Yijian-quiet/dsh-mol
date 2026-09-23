@@ -22,6 +22,7 @@ from rdkit.Chem import Draw
 from rdkit.Chem.Draw import rdMolDraw2D
 
 from ._rdkit import mol_from_smiles
+from .i18n import t
 from .validate import check
 
 _SAFE = re.compile(r"[^A-Za-z0-9_.-]+")
@@ -113,7 +114,7 @@ def _highlight(mol, smarts: str | None):
         return None, None
     patt = Chem.MolFromSmarts(smarts)
     if patt is None:
-        raise ValueError(f"SMARTS 无法解析：{smarts}")
+        raise ValueError(t("err_smarts_parse", smarts))
     match = mol.GetSubstructMatch(patt)
     if not match:
         return None, None
@@ -153,12 +154,12 @@ def draw(
     """
     fmt = fmt.lower().lstrip(".")
     if fmt not in ("png", "svg"):
-        raise ValueError(f"只支持 png / svg，收到 {fmt!r}")
+        raise ValueError(t("err_bad_image_format", repr(fmt)))
 
     r = check(smiles)
     if not r.ok:
         reason = "；".join(d.message for d in r.diagnostics) or "无法解析"
-        raise ValueError(f"SMILES 无法解析：{reason}")
+        raise ValueError(t("err_smiles_parse", reason))
     mol = mol_from_smiles(smiles)
 
     atoms, bonds = _highlight(mol, highlight_smarts)
@@ -272,16 +273,14 @@ def draw_grid(
         if legends is not None:
             kept_legends.append(legends_list[i] if i < len(legends_list) else "")
     if not mols:
-        raise ValueError("没有任何可画的分子（全部解析失败）")
+        raise ValueError(t("err_no_drawable"))
 
     warnings: list[str] = []
     path = out_dir(out) / filename
 
     if kept_legends and any(has_non_ascii(t) for t in kept_legends):
         if find_cjk_font() is None:
-            warnings.append(
-                "图注含中文，但系统找不到中文字体 → 网格图里将没有图注。"
-                "请安装中文字体（如 fonts-noto-cjk）或改用 ASCII 图注。")
+            warnings.append(t("warn_no_cjk_font"))
             kept_legends = []
         img = _compose_grid_pil(mols, kept_legends, mols_per_row, sub_img_size)
         img.save(path)

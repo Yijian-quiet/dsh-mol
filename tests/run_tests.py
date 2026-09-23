@@ -353,6 +353,84 @@ def _():
         D.find_cjk_font = real
 
 
+# ---------------------------------------------------------------- i18n
+@case("i18n: 英文诊断可读，且不再出现中文")
+def _():
+    r = cc.check("C1CC", lang="en")
+    eq(r.level, "error", "level")
+    msgs = " ".join(d.message for d in r.diagnostics)
+    true("Ring-closure digit" in msgs, f"英文文案缺失：{msgs[:80]}")
+    true(not any("\u4e00" <= ch <= "\u9fff" for ch in msgs), f"英文模式下不应有中文：{msgs[:80]}")
+
+
+@case("i18n: code 与语言无关（契约是 code，不是文案）")
+def _():
+    zh = cc.check("C1CC")
+    en = cc.check("C1CC", lang="en")
+    eq([d.code for d in en.diagnostics], [d.code for d in zh.diagnostics], "诊断 code 序列")
+    eq(en.position, zh.position, "position")
+    eq(en.canonical, zh.canonical, "canonical")
+    # 等级也必须一致，否则行为会随语言漂移
+    eq(en.level, zh.level, "level")
+
+
+@case("i18n: 空输入 / 括号 / 价键 都有英文")
+def _():
+    cases = [("", "Empty input"), ("CC(=O)O)", "parenthes"),
+             ("C(C)(C)(C)(C)C", "Valence exceeded"), ("[Fe+9]", "Unusual charge")]
+    for smi, needle in cases:
+        msgs = " ".join(d.message for d in cc.check(smi, lang="en").diagnostics)
+        true(needle.lower() in msgs.lower(), f"{smi!r} 的英文诊断应含 {needle!r}，实际：{msgs[:70]}")
+
+
+@case("i18n: set_lang 全局生效，且可复位")
+def _():
+    original = cc.current_lang()
+    try:
+        cc.set_lang("en")
+        eq(cc.current_lang(), "en", "set_lang")
+        true("Empty input" in cc.check("").diagnostics[0].message, "全局英文应生效")
+        cc.set_lang(None)      # 清除覆盖
+        eq(cc.current_lang(), cc.DEFAULT_LANG, "复位到默认")
+    finally:
+        cc.set_lang(original)
+
+
+@case("i18n: 环境变量 CHEMWORKBENCH_LANG 生效")
+def _():
+    import os
+    old_env = os.environ.get("CHEMWORKBENCH_LANG")
+    try:
+        cc.set_lang(None)                       # 先清覆盖，让环境变量说话
+        os.environ["CHEMWORKBENCH_LANG"] = "en"
+        eq(cc.current_lang(), "en", "env 解析")
+        true("Empty input" in cc.check("").diagnostics[0].message, "env 驱动的英文")
+    finally:
+        os.environ.pop("CHEMWORKBENCH_LANG", None)
+        if old_env is not None:
+            os.environ["CHEMWORKBENCH_LANG"] = old_env
+        cc.set_lang(None)
+
+
+@case("i18n: 异常消息也走 i18n（ValueError 英文）")
+def _():
+    try:
+        cc.properties("C1CC", )
+    except ValueError:
+        pass
+    # properties 没有 lang 形参，走全局设置
+    original = cc.current_lang()
+    try:
+        cc.set_lang("en")
+        try:
+            cc.standardize("C1CC")
+            raise AssertionError("应当抛 ValueError")
+        except ValueError as exc:
+            true("Cannot parse SMILES" in str(exc), f"英文异常缺失：{exc}")
+    finally:
+        cc.set_lang(original)
+
+
 # ---------------------------------------------------------------- 汇总
 if __name__ == "__main__":
     total = len(PASS) + len(FAIL)

@@ -14,6 +14,7 @@ from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors, rdMolDescriptors
 
 from ._rdkit import mol_from_smiles
+from .i18n import t
 from .validate import check
 
 
@@ -21,7 +22,7 @@ def _mol_or_raise(smiles: str):
     r = check(smiles)
     if not r.ok:
         reason = "；".join(d.message for d in r.diagnostics) or "无法解析"
-        raise ValueError(f"SMILES 无法解析：{reason}")
+        raise ValueError(t("err_smiles_parse", reason))
     return mol_from_smiles(smiles), r
 
 

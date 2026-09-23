@@ -19,35 +19,27 @@ from typing import Any
 from rdkit import Chem
 
 from ._rdkit import parse
+from .i18n import t
 
 # --------------------------------------------------------------------------
 # RDKit 原始信息 → 人话
 # 顺序重要：先具体后笼统
 # --------------------------------------------------------------------------
+# 第三条是 **i18n key**（不是文案）：文案取自 chemcore.i18n，随语言变，
+# 而 code 与 key 永远与语言无关 —— 调用方/测试断言 code，不要断言文案。
 _RULES: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(r"unclosed ring", re.I), "unclosed_ring",
-     "环闭合标记没有配对：SMILES 里的成环数字（如 C1...C1）出现次数必须是偶数"),
-    (re.compile(r"extra close parentheses", re.I), "extra_paren",
-     "多余的右括号：) 比 ( 多"),
-    (re.compile(r"unmatched open parentheses", re.I), "missing_paren",
-     "括号没有闭合：( 比 ) 多"),
+    (re.compile(r"unclosed ring", re.I), "unclosed_ring", "unclosed_ring"),
+    (re.compile(r"extra close parentheses", re.I), "extra_paren", "extra_paren"),
+    (re.compile(r"unmatched open parentheses", re.I), "missing_paren", "missing_paren"),
     (re.compile(r"Explicit valence for atom #\s*(\d+)\s*([A-Za-z]{1,3}),\s*(\d+),\s*is greater than permitted", re.I),
-     "valence",
-     "原子价键数超限：第 {0} 号原子（{1}）的连接数是 {2}，超过该元素允许的最大值"),
-    (re.compile(r"Unusual charge on atom\s*(\d+)", re.I), "unusual_charge",
-     "电荷异常：第 {0} 号原子的形式电荷在常见化学里很少见，请确认不是笔误"),
-    (re.compile(r"[Cc]an'?t kekulize|kekulize", re.I), "kekulize",
-     "芳香环无法 Kekulé 化：芳香性写法或环上取代基有问题"),
-    (re.compile(r"[Ee]lement '([^']+)' not found|Invalid element", re.I), "bad_element",
-     "元素符号无法识别（{0}）：注意大小写，如 Cl 不是 CL、c 是芳香碳而 C 是脂肪碳"),
-    (re.compile(r"non-ring atom\s*(\d+)\s*marked aromatic", re.I), "aromatic_nonring",
-     "非环原子被标成芳香（第 {0} 号）：芳香小写字母只能用在环上"),
-    (re.compile(r"SMILES Parse Error: syntax error while parsing", re.I), "syntax",
-     "SMILES 语法错误：在这附近有非法字符或不完整片段"),
-    (re.compile(r"SMILES Parse Error", re.I), "parse_error",
-     "SMILES 解析失败"),
-    (re.compile(r"Ring closure bond type specified", re.I), "ring_bond_redundant",
-     "环闭合时重复指定了键型（如 C=1CCCC=1 之类）"),
+     "valence", "valence"),
+    (re.compile(r"Unusual charge on atom\s*(\d+)", re.I), "unusual_charge", "unusual_charge"),
+    (re.compile(r"[Cc]an'?t kekulize|kekulize", re.I), "kekulize", "kekulize"),
+    (re.compile(r"[Ee]lement '([^']+)' not found|Invalid element", re.I), "bad_element", "bad_element"),
+    (re.compile(r"non-ring atom\s*(\d+)\s*marked aromatic", re.I), "aromatic_nonring", "aromatic_nonring"),
+    (re.compile(r"SMILES Parse Error: syntax error while parsing", re.I), "syntax", "syntax"),
+    (re.compile(r"SMILES Parse Error", re.I), "parse_error", "parse_error"),
+    (re.compile(r"Ring closure bond type specified", re.I), "ring_bond_redundant", "ring_bond_redundant"),
 ]
 
 _LEVEL_BY_CODE = {
@@ -148,15 +140,15 @@ def _scan_ring_closures(text: str) -> list[tuple[str, list[int]]]:
     return list(found.items())
 
 
-def _translate(raw_log: str) -> list[Diagnostic]:
-    """把 RDKit 日志翻成一或多条人话诊断。"""
+def _translate(raw_log: str, lang: str | None = None) -> list[Diagnostic]:
+    """把 RDKit 日志翻成一或多条人话诊断（按 ``lang`` 取文案）。"""
     out: list[Diagnostic] = []
     seen: set[str] = set()
     for line in raw_log.splitlines():
         line = re.sub(r"^\[\d{2}:\d{2}:\d{2}\]\s*", "", line).strip()
         if not line:
             continue
-        for pattern, code, template in _RULES:
+        for pattern, code, msg_key in _RULES:
             m = pattern.search(line)
             if not m:
                 continue
@@ -164,22 +156,22 @@ def _translate(raw_log: str) -> list[Diagnostic]:
                 break
             seen.add(code)
             groups = [g for g in (m.groups() or ()) if g]
-            try:
-                message = template.format(*groups) if groups else template
-            except (IndexError, KeyError):
-                message = template
+            message = t(msg_key, *groups, lang=lang)
             level = "warning" if _LEVEL_BY_CODE.get(code) == "warn" else "error"
             out.append(Diagnostic(level=level, code=code, message=message, raw=line))
             break
     return out
 
 
-def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
+def check(smiles: str, *, include_inchi_key: bool = False,
+          lang: str | None = None) -> CheckResult:
     """校验并规范化一个 SMILES。
 
     Args:
         smiles: 待校验的 SMILES 字符串。
         include_inchi_key: 预留参数（当前不产出 InChIKey，见 convert 模块）。
+        lang: 诊断文案语言（``zh`` / ``en``）；缺省取 ``CHEMWORKBENCH_LANG`` 或 ``zh``。
+              ``code`` 与语言无关，断言请用 code。
 
     Returns:
         CheckResult，``level`` 为 ``ok`` / ``warn`` / ``error``。
@@ -191,11 +183,11 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
             input=smiles if isinstance(smiles, str) else "",
             diagnostics=[Diagnostic(
                 level="error", code="empty",
-                message="输入为空：没有可解析的 SMILES 内容", raw="")],
+                message=t("empty", lang=lang), raw="")],
         )
 
     mol, raw_log = parse(smiles)
-    diags = _translate(raw_log)
+    diags = _translate(raw_log, lang)
 
     # 坑 2：0 原子空分子也算失败（防御性，正常路径已被上面的空串分支拦住）
     if mol is not None and mol.GetNumAtoms() == 0:
@@ -203,7 +195,7 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
             level="error", input=smiles, num_atoms=0,
             diagnostics=[Diagnostic(
                 level="error", code="no_atoms",
-                message="没有解析出任何原子：输入可能只含空白或无效片段",
+                message=t("no_atoms", lang=lang),
                 raw=raw_log.strip())],
         )
 
@@ -214,14 +206,9 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
             code, pos = scanned
             position = pos
             if not any(d.code in (code, "extra_paren", "missing_paren") for d in diags):
-                msg = {
-                    "extra_paren": f"多余的右括号：第 {pos} 个字符处",
-                    "missing_paren": f"括号没有闭合：第 {pos} 个字符处的 ( 未配对",
-                    "extra_bracket": f"多余的右方括号：第 {pos} 个字符处",
-                    "missing_bracket": f"方括号没有闭合：第 {pos} 个字符处的 [ 未配对",
-                    "mismatched_bracket": f"括号类型不匹配：第 {pos} 个字符处应为 ]",
-                }[code]
-                diags.append(Diagnostic(level="error", code=code, message=msg))
+                # code 与 i18n key 同名（*_at 带位置），避免再维护一张映射表
+                diags.append(Diagnostic(level="error", code=code,
+                                        message=t(f"{code}_at", pos, lang=lang)))
 
         # 成环数字：RDKit 只说"环未闭合"，这里指出是哪个编号、在哪
         odd = [(digit, positions) for digit, positions in _scan_ring_closures(smiles)
@@ -232,15 +219,13 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
                 position = pos
             diags.append(Diagnostic(
                 level="error", code="unclosed_ring_position",
-                message=(f"成环编号 {digit} 只出现了 {len(positions)} 次"
-                         f"（最后一次在第 {pos} 个字符）：成环数字必须成对出现，"
-                         f"如 C1CC1 而不是 C1CC"),
+                message=t("unclosed_ring_position", digit, len(positions), pos, lang=lang),
                 raw=""))
 
         if not diags:
             diags.append(Diagnostic(
                 level="error", code="parse_failed",
-                message="RDKit 无法解析该 SMILES，且未给出具体原因", raw=""))
+                message=t("parse_failed", lang=lang), raw=""))
         return CheckResult(level="error", input=smiles, diagnostics=diags,
                            position=position)
 
@@ -256,7 +241,8 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
             line = re.sub(r"^\[\d{2}:\d{2}:\d{2}\]\s*", "", line).strip()
             if line:
                 warnings.append(Diagnostic(level="warning", code="rdkit_warning",
-                                           message=f"RDKit 提示：{line}", raw=line))
+                                           message=t("rdkit_warning", line, lang=lang),
+                                           raw=line))
     return CheckResult(
         level="warn" if warnings else "ok",
         input=smiles,
@@ -267,7 +253,7 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
     )
 
 
-def canonicalize(smiles: str) -> str | None:
+def canonicalize(smiles: str, lang: str | None = None) -> str | None:
     """只要规范化结果，失败返回 None。批量场景的便捷入口。"""
-    r = check(smiles)
+    r = check(smiles, lang=lang)
     return r.canonical if r.ok else None

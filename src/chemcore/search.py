@@ -12,6 +12,7 @@ from rdkit import Chem, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 
 from ._rdkit import mol_from_smiles
+from .i18n import t
 from .validate import check
 
 _FP_KINDS = ("morgan", "rdkit", "maccs")
@@ -28,7 +29,7 @@ def _fp(mol, kind: str = "morgan", radius: int = 2, n_bits: int = 2048):
     if kind == "maccs":
         from rdkit.Chem import MACCSkeys
         return MACCSkeys.GenMACCSKeys(mol)
-    raise ValueError(f"指纹类型须是 {_FP_KINDS} 之一，收到 {kind!r}")
+    raise ValueError(t("err_bad_fp", _FP_KINDS, repr(kind)))
 
 
 def substructure_match(smiles: str, smarts: str, *, max_matches: int = 50) -> dict[str, Any]:
@@ -38,13 +39,13 @@ def substructure_match(smiles: str, smarts: str, *, max_matches: int = 50) -> di
     """
     r = check(smiles)
     if not r.ok:
-        raise ValueError("SMILES 无法解析：" + "；".join(d.message for d in r.diagnostics))
+        raise ValueError(t("err_smiles_parse", "；".join(d.message for d in r.diagnostics)))
     patt = Chem.MolFromSmarts(smarts)
     if patt is None:
-        raise ValueError(f"SMARTS 无法解析：{smarts!r}")
+        raise ValueError(t("err_smarts_parse", repr(smarts)))
     mol = mol_from_smiles(smiles)
     if mol is None:
-        raise ValueError("SMILES 无法解析")
+        raise ValueError(t("err_smiles_parse", ""))
     if not mol.HasSubstructMatch(patt):
         return {"matched": False, "count": 0, "matches": [], "canonical": r.canonical}
     all_matches = mol.GetSubstructMatches(patt, uniquify=True, maxMatches=max_matches)
@@ -61,14 +62,14 @@ def similarity(a: str, b: str, *, kind: str = "morgan", metric: str = "tanimoto"
     ma, mb = mol_from_smiles(a), mol_from_smiles(b)
     for label, m, s in (("a", ma, a), ("b", mb, b)):
         if m is None:
-            raise ValueError(f"分子 {label} 的 SMILES 无法解析：{s!r}")
+            raise ValueError(t("err_mol_parse_labeled", label, repr(s)))
     fa, fb = _fp(ma, kind), _fp(mb, kind)
     if metric.lower() == "tanimoto":
         score = DataStructs.TanimotoSimilarity(fa, fb)
     elif metric.lower() in ("dice", "diceSimilarity".lower()):
         score = DataStructs.DiceSimilarity(fa, fb)
     else:
-        raise ValueError("metric 只支持 tanimoto / dice")
+        raise ValueError(t("err_bad_metric"))
     return {"a": a, "b": b, "fingerprint": kind.lower(), "metric": metric.lower(),
             "score": round(float(score), 4)}
 
@@ -84,7 +85,7 @@ def find_similar(
     """在一批分子中按相似度排序，返回超过阈值的前 ``top_k`` 个。"""
     mq = mol_from_smiles(query)
     if mq is None:
-        raise ValueError(f"查询 SMILES 无法解析：{query!r}")
+        raise ValueError(t("err_query_parse", repr(query)))
     fq = _fp(mq, kind)
     hits, failures = [], []
     for i, smi in enumerate(pool):

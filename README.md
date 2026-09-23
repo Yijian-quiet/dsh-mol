@@ -66,6 +66,24 @@
 **并且：批量接口绝不静默丢数据。** 每一行都有明确归属（ok / warn / failed），
 失败逐条列出——科研数据里"悄悄少了两行"比报错危险得多。
 
+### 诊断文案支持中英双语
+
+默认中文；英文环境设一个环境变量即可：
+
+```bash
+export CHEMWORKBENCH_LANG=en        # zh（默认）/ en
+```
+
+```python
+import chemcore as cc
+cc.check("C1CC", lang="en").diagnostics[0].message
+# 'Ring-closure digit 1 appears 1 time(s) (last at character 1): ring numbers must come in pairs, e.g. C1CC1 rather than C1CC'
+```
+
+> ⚠️ **契约是 `code`，不是文案。** `code`（`unclosed_ring` / `valence` …）与语言无关，
+> 也**不随语言改变 level / position / canonical**——有专门的回归用例锁住这一点。
+> 依赖诊断文本做判断的代码，请改成依赖 `code`。
+
 ---
 
 ## 安装

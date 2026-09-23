@@ -11,6 +11,7 @@ from typing import Any
 from rdkit import Chem
 
 from ._rdkit import capture_log, mol_from_smiles
+from .i18n import t
 from .validate import check
 
 
@@ -42,7 +43,7 @@ def standardize(
 
     r = check(smiles)
     if not r.ok:
-        raise ValueError("SMILES 无法解析：" + "；".join(d.message for d in r.diagnostics))
+        raise ValueError(t("err_smiles_parse", "；".join(d.message for d in r.diagnostics)))
 
     mol = mol_from_smiles(smiles)
     changes: list[dict[str, str]] = []

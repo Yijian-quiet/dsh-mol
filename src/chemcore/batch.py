@@ -48,7 +48,7 @@ def read_smiles_column(path: str | os.PathLike[str], column: str | None = None) 
     idx = 0
     if column:
         if column.lower() not in header:
-            raise ValueError(f"CSV 里没有列 {column!r}；现有列：{header}")
+            raise ValueError(t("err_csv_column", repr(column), header))
         idx = header.index(column.lower())
     else:
         for i, h in enumerate(header):
