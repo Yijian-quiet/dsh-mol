@@ -71,6 +71,36 @@ def _():
     eq(r.diagnostics[0].code, "empty", "code")
 
 
+@case("validate: 环未闭合指出是哪个编号、在哪")
+def _():
+    r = cc.check("C1CC")
+    eq(r.level, "error", "level")
+    eq(r.position, 1, "position")        # C0 1→1 C2 C3
+    precise = [d for d in r.diagnostics if d.code == "unclosed_ring_position"]
+    true(precise, f"应给出精确的成环编号诊断：{[d.code for d in r.diagnostics]}")
+    true("成环编号 1" in precise[0].message, f"信息应指出编号：{precise[0].message}")
+
+
+@case("validate: 成环数字成对时不误报")
+def _():
+    for good in ("C1CC1", "c1ccccc1", "C1CCCCC1", "C%10CC%10"):
+        eq(cc.check(good).level, "ok", f"{good} 不应报错")
+
+
+@case("validate: 方括号内的数字不算成环标记")
+def _():
+    r = cc.check("[13CH4]")
+    eq(r.level, "ok", "[13CH4] 应通过（13 是同位素，不是成环编号）")
+
+
+@case("validate: 两位成环编号 %10 也能定位")
+def _():
+    r = cc.check("C%10CC")
+    eq(r.level, "error", "level")
+    true(any(d.code == "unclosed_ring_position" and "10" in d.message
+             for d in r.diagnostics), f"应指出编号 10：{[d.message for d in r.diagnostics]}")
+
+
 @case("validate: 纯空白也失败")
 def _():
     eq(cc.check("   ").level, "error", "level")

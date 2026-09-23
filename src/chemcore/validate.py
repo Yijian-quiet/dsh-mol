@@ -117,6 +117,37 @@ def _scan_brackets(text: str) -> tuple[str, int] | None:
     return None
 
 
+def _scan_ring_closures(text: str) -> list[tuple[str, list[int]]]:
+    """扫描成环数字（方括号外的），返回 ``[(编号, 位置列表)]``。
+
+    SMILES 里成环数字必须**成对出现**（`C1CC1`）。RDKit 只说"环未闭合"，
+    不告诉你是哪个数字、在哪 —— 这里补上。
+
+    注意：方括号内的数字不是成环标记（`[13C]`、`[C@H]`、原子映射 `[CH3:1]`），
+    两位成环编号写作 `%10`。
+    """
+    found: dict[str, list[int]] = {}
+    depth = 0
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "[":
+            depth += 1
+        elif ch == "]":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            if ch == "%" and i + 2 < n and text[i + 1].isdigit() and text[i + 2].isdigit():
+                tok = text[i + 1:i + 3]
+                found.setdefault(tok, []).append(i)
+                i += 3
+                continue
+            if ch.isdigit():
+                found.setdefault(ch, []).append(i)
+        i += 1
+    return list(found.items())
+
+
 def _translate(raw_log: str) -> list[Diagnostic]:
     """把 RDKit 日志翻成一或多条人话诊断。"""
     out: list[Diagnostic] = []
@@ -191,6 +222,21 @@ def check(smiles: str, *, include_inchi_key: bool = False) -> CheckResult:
                     "mismatched_bracket": f"括号类型不匹配：第 {pos} 个字符处应为 ]",
                 }[code]
                 diags.append(Diagnostic(level="error", code=code, message=msg))
+
+        # 成环数字：RDKit 只说"环未闭合"，这里指出是哪个编号、在哪
+        odd = [(digit, positions) for digit, positions in _scan_ring_closures(smiles)
+               if len(positions) % 2 == 1]
+        for digit, positions in odd:
+            pos = positions[-1]
+            if position is None:
+                position = pos
+            diags.append(Diagnostic(
+                level="error", code="unclosed_ring_position",
+                message=(f"成环编号 {digit} 只出现了 {len(positions)} 次"
+                         f"（最后一次在第 {pos} 个字符）：成环数字必须成对出现，"
+                         f"如 C1CC1 而不是 C1CC"),
+                raw=""))
+
         if not diags:
             diags.append(Diagnostic(
                 level="error", code="parse_failed",

@@ -1,0 +1,20 @@
+{
+  "name": "dsh-chemworkbench",
+  "version": "0.0.1",
+  "private": false,
+  "description": "把本地优先的化学工作台（chemworkbench）接入 DeepSeek Harness：SMILES 校验/画分子/性质/格式互转/标准化/批量清洗，纯本地、零网络",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["dsh-plugin", "deepseek-harness", "chemistry", "rdkit", "smiles", "mcp", "ai4s"],
+  "files": ["cordis.patch.yml", "README.md"],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yijian-quiet/chemworkbench.git",
+    "directory": "dsh-bundle"
+  }
+}

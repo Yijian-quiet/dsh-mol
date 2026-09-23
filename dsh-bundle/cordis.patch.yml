@@ -1,0 +1,27 @@
+# chemworkbench 的 DSH 组合包（bundle）层。
+#
+# 它只贡献配置、不含 JS 代码：把 chemworkbench 的 **stdio MCP 服务** 挂进 DSH 的
+# MCP 客户端（@deepseek-ai/dsh-mcp-client），于是模型侧会出现
+# `mcp__chem__chem_check_smiles` 这类工具。
+#
+# 为什么不写死绝对路径：
+#   `!!js` 表达式在 loader 上下文里求值，全局对象（process 等）可用，
+#   因此这里用「PATH 上的可执行文件 + 环境变量覆盖」来保持可移植。
+#
+# 前置条件（二选一）：
+#   A) 正式安装： pip install 'chemworkbench[mcp]'   → PATH 上会有 chemworkbench-mcp
+#   B) 源码运行： export CHEMWORKBENCH_MCP_COMMAND=python3
+#                export CHEMWORKBENCH_MCP_ARGS='-m chemworkbench_mcp.server'
+#                export PYTHONPATH=/path/to/chemworkbench/src
+#
+# 安装： dsh plugin --profile <name> add dsh-chemworkbench
+
+- insert:
+    - id: chemworkbench
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: chem
+        transport: stdio
+        command: !!js process.env.CHEMWORKBENCH_MCP_COMMAND ?? 'chemworkbench-mcp'
+        args: !!js (process.env.CHEMWORKBENCH_MCP_ARGS ?? '').split(' ').filter(Boolean)
+        cwd: !!js process.cwd()

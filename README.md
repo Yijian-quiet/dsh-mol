@@ -91,11 +91,25 @@ export PYTHONPATH=/path/to/chemworkbench/src
 PYTHONPATH=src python3 -m chemworkbench_mcp.server --selftest
 ```
 
-## 作为 MCP 服务使用
+## 接入 DeepSeek Harness（两种方式）
+
+### 方式一（推荐）：装组合包
+
+```bash
+pip install 'chemworkbench[mcp]'
+dsh plugin --profile <profile> add dsh-chemworkbench
+```
+
+组合包在 [`dsh-bundle/`](dsh-bundle/README.md)，**只贡献配置、不含 JS 代码**——
+它插入一条 `@deepseek-ai/dsh-mcp-client` 记录指向本仓库的 stdio 服务，
+工具实现只有 Python 一份，不存在两套实现漂移。
+
+路径用 `!!js` 表达式从环境变量解析（不写死绝对路径），所以同一份 patch
+在不同机器、不同安装方式下通用。详见 `dsh-bundle/README.md`。
+
+### 方式二：手动叠加 patch（其他 MCP 客户端 / 不想装包）
 
 stdio 传输，**纯本地，不联网**。（只有"远端 MCP"才走网络——这点常被混淆。）
-
-配置片段（DSH 用 `@deepseek-ai/dsh-mcp-client`，其他客户端同理）：
 
 ```yaml
 - insert:
@@ -111,7 +125,13 @@ stdio 传输，**纯本地，不联网**。（只有"远端 MCP"才走网络—�
           CHEMWORKBENCH_OUT: /path/to/out
 ```
 
+```bash
+dsh --profile headless --patch dsh/chemworkbench.cordis.yml "校验 C1CC"
+```
+
 工具名会以 `mcp__chem__chem_check_smiles` 之类的形式出现在模型侧。
+（`dsh/chemworkbench.cordis.yml` 与 `dsh-bundle/cordis.patch.yml` 是同一件事的
+两种写法：前者写死本机绝对路径、适合手动；后者走环境变量、适合分发。）
 
 ## 工具一览
 
@@ -172,3 +192,14 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 协议级冒烟（真起服�
 ## 许可
 
 MIT
+
+## 仓库结构
+
+```
+src/chemcore/          纯 RDKit 核心（唯一的事实来源）
+src/chemworkbench_mcp/ stdio MCP 适配层
+dsh-bundle/            DSH 组合包（只贡献配置，指向上面的 MCP 服务）
+dsh/                   手动叠加用的 patch（写死本机路径）
+tests/                 零依赖测试 + MCP 协议冒烟
+docs/                  演示图
+```
