@@ -138,6 +138,32 @@ Tools appear to the model as `mcp__chem__chem_check_smiles` and friends.
 > deliverable. `headless` mounts no presets, so `present` is unavailable there —
 > that is expected, not a bug.
 
+### Optional: wiring in network-backed deep services
+
+The local tools cover **general chemistry fundamentals** (offline, zero network).
+Domain-depth capabilities (polymer property prediction, retrosynthesis) are a
+second leg and belong to a **remote MCP server**.
+
+[`dsh/polymer-platform.cordis.yml`](dsh/polymer-platform.cordis.yml) is a worked
+**example** — it mounts a private HTTP MCP server (loopback-only read-only proxy,
+Bearer auth):
+
+```bash
+export POLYMER_MCP_TOKEN=...        # token travels via env only, never in a file
+dsh --profile headless \
+    --patch dsh/chemworkbench.cordis.yml \
+    --patch dsh/polymer-platform.cordis.yml \
+    "predict Tg for PET"
+```
+
+Two deliberate choices:
+
+- It is **not** part of `dsh-bundle/`. A public bundle must not hard-depend on
+  anyone's private service; this overlay stays in the repo as a template for
+  wiring a private HTTP MCP server.
+- It sets `failOnStartupError: false`, so **a down platform does not break DSH
+  startup** — those tools simply do not appear, and the local tools keep working.
+
 ## Tools
 
 | Tool | Purpose |

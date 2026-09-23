@@ -140,6 +140,29 @@ dsh --profile headless --patch dsh/chemworkbench.cordis.yml "校验 C1CC"
 > `dsh web` profile 挂了 `agent-presets`，因此有 `present`；
 > **`headless` 没挂 presets，所以一次性任务里没有这个工具**（这是预期行为，不是 bug）。
 
+### 可选：把"深度服务"接进来（需要网络）
+
+本地工具管**通用化学基础**（零网络）；领域深度能力（如聚合物性质预测、逆合成）
+属于另一条腿，走**远端 MCP 服务**。
+
+[`dsh/polymer-platform.cordis.yml`](dsh/polymer-platform.cordis.yml) 是一份**示例**
+—— 它接入一个私有 HTTP MCP 服务（只绑回环的只读代理，Bearer 鉴权）：
+
+```bash
+export POLYMER_MCP_TOKEN=...        # 令牌只走环境变量，不写进文件
+dsh --profile headless \
+    --patch dsh/chemworkbench.cordis.yml \
+    --patch dsh/polymer-platform.cordis.yml \
+    "用 polymer_predict 算一下 PET 的 Tg"
+```
+
+两点设计取舍：
+
+- 它**不在** `dsh-bundle/` 里。公开的组合包不应硬依赖任何人的私有服务；
+  这份 overlay 留在仓库里，是作为"如何接私有 HTTP MCP"的范例。
+- 配了 `failOnStartupError: false`：**平台没起时不拖垮 DSH 启动**，
+  只是那几个工具不出现，本地工具照常可用。
+
 ## 工具一览
 
 | 工具 | 作用 |
