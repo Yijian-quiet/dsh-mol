@@ -403,6 +403,8 @@ def _settings_from(req):
         "gpu": _coerce_int(req, "gpu", -1),
         "gpu_effective": _coerce_int(req, "gpu", -1),  # _prepare_runtime_args 会改写
         "compat_shims": _coerce_bool(req, "compat_shims", True),
+        # force=true 跳过内存预检（明知道可能被 OOM-kill 也要试一次）
+        "force": _coerce_bool(req, "force", False),
     }
 
 
@@ -434,6 +436,98 @@ def _resolve_retro_home(req):
         if os.path.isdir(candidate):
             return os.path.abspath(candidate), "default_candidate"
     return os.path.abspath(DEFAULT_RETRO_STAR_HOMES[0]), "default_candidate"
+
+
+# ---------------------------------------------------------------------------
+# 内存够不够（同样必须在重量级 import 之前 —— 不够时内核会直接 OOM-kill，
+# 子进程连写一行错误的机会都没有，用户只能看到一个莫名其妙的 SIGKILL）
+# ---------------------------------------------------------------------------
+
+#: building blocks 的常驻内存按**文件大小的倍数**估。实测锚点：
+#: `set(pd.read_csv(origin_dict.csv)['mol'])`，文件 1298 MB / 2308 万条，
+#: 峰值 RSS 3917 MB ≈ 文件大小的 3.0 倍（换 usecols / 分块读只降到 ~3.7 GB ——
+#: 大头是那 2308 万个字符串本身，不是 pandas 的开销）。
+#: 用倍数而不是写死 3900：换了子集数据文件时估算跟着走（小文件不该被误判成不够）。
+BLOCKS_FILE_FACTOR = 3.0
+
+#: 再小的数据集也得留出解释器与解析的底。
+BLOCKS_MIN_MB = 50
+
+#: torch + rdchiral + rdkit 导入后的常驻开销（同一台机器实测约 400-600 MB）。
+RUNTIME_MB = 600
+
+#: 模型权重要读进内存，解析期还会有一份峰值副本，所以按文件大小的 1.5 倍估。
+MODEL_FILE_FACTOR = 1.5
+
+#: 留一点余量，别卡在临界值上换来一次 OOM。
+SAFETY_MB = 400
+
+
+def _mem_available_mb():
+    """读 /proc/meminfo 的 MemAvailable。读不到就返回 None（不阻塞流程）。"""
+    try:
+        with open("/proc/meminfo", "r") as fh:
+            for line in fh:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) // 1024
+    except OSError:
+        return None
+    return None
+
+
+def _estimate_required_mb(retro_home, use_value_fn):
+    """估一次规划需要多少内存。给的是**可解释的估算**，不是精确值。
+
+    构成：building blocks（按文件大小 3 倍）+ 模型权重（文件 1.5 倍）
+    + 运行时（torch/rdkit 常驻）+ 安全余量。
+    """
+    parts = {}
+    try:
+        blocks_mb = os.path.getsize(
+            os.path.join(retro_home, "retro_star/dataset/origin_dict.csv")) / (1024 * 1024)
+        parts["building_blocks"] = max(BLOCKS_MIN_MB, int(blocks_mb * BLOCKS_FILE_FACTOR))
+    except OSError:
+        parts["building_blocks"] = BLOCKS_MIN_MB
+    parts["runtime"] = RUNTIME_MB
+    for rel, _why, always in REQUIRED_FILES:
+        # 源码与 building blocks 已单独算过；剩下的按模型权重处理
+        if rel.endswith((".py", ".csv")):
+            continue
+        if not always and not use_value_fn:
+            continue
+        try:
+            size_mb = os.path.getsize(os.path.join(retro_home, rel)) / (1024 * 1024)
+        except OSError:
+            continue
+        parts[rel] = int(size_mb * MODEL_FILE_FACTOR)
+    return sum(parts.values()) + SAFETY_MB, parts
+
+
+def _memory_payload(retro_home, home_source, use_value_fn, available_mb, required_mb, parts):
+    return {
+        "ok": False,
+        "code": "retro_insufficient_memory",
+        "backend": BACKEND,
+        "retro_home": retro_home,
+        "retro_home_source": home_source,
+        "available_mb": available_mb,
+        "required_mb": required_mb,
+        "estimate_parts": parts,
+        "message": (
+            "Retro* 的数据和依赖都齐了，但这台机器的空闲内存不够："
+            "现在可用 %d MB，估下来需要约 %d MB。"
+            "不等它跑，内核会先把进程 OOM-kill 掉（你只会看到一个 SIGKILL，没有任何报错）。"
+            % (available_mb, required_mb)
+        ),
+        "suggestions": [
+            "先看 `free -g`：如果 used 很高，关掉占内存的服务再试（本机实测：两个 uvicorn 能占 3 GB）",
+            "WSL2 默认只给宿主内存的 50%。宿主 16 GB 时 WSL 只有 7.7 GB —— "
+            "在 C:\\Users\\<你>\\.wslconfig 里写 [wsl2] memory=12GB，再 `wsl --shutdown` 重开，最省事",
+            "确认要试就带 force=true 强制跑（可能被 OOM-kill）",
+        ],
+        "doc": _doc_path(),
+        "heavy_imports_skipped": True,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1040,6 +1134,15 @@ def run_bridge():
     if missing:
         _emit(_not_configured_payload(retro_home, home_source, settings["use_value_fn"],
                                       missing, missing_optional, checked), exit_code=0)
+
+    # ---- 内存预检：宁可提前说"不够"，也不要换来一个没有信息的 SIGKILL ----
+    if not settings.get("force"):
+        available_mb = _mem_available_mb()
+        if available_mb is not None:
+            required_mb, parts = _estimate_required_mb(retro_home, settings["use_value_fn"])
+            if available_mb < required_mb:
+                _emit(_memory_payload(retro_home, home_source, settings["use_value_fn"],
+                                      available_mb, required_mb, parts), exit_code=0)
 
     ctx = {
         "smiles": settings["smiles"],

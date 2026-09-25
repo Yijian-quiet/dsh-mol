@@ -607,13 +607,19 @@ window.__ModuleLoader__.load({
 
     function RetroTab(props) {
       const { s } = props
-      const run = async () => {
+      const run = async (force) => {
         const smiles = (s.draftInput || s.smiles || '').trim()
         if (!smiles) { say('先给一个目标分子', 'warn'); return }
-        setState({ retroBusy: true, retro: null, status: '逆合成规划中…（可能要几十秒）', statusTone: 'muted' })
+        setState({
+          retroBusy: true, retro: null,
+          status: force ? '已放行，开始规划…（内存不够时可能被系统杀掉）' : '逆合成规划中…（首次要加载模型，慢是正常的）',
+          statusTone: 'muted',
+        })
         let response
         try {
-          response = await postJson(RETRO_URL, { smiles, iterations: 100, expansion_topk: 50, use_value_fn: true })
+          response = await postJson(RETRO_URL, {
+            smiles, iterations: 100, expansion_topk: 50, use_value_fn: true, force: !!force,
+          })
         } catch (error) {
           response = { ok: false, code: 'network', message: `连不上逆合成后端：${error?.message ?? error}` }
         }
@@ -649,13 +655,35 @@ window.__ModuleLoader__.load({
               h(RouteNode, { node: route.tree || route, depth: 0 })))
             : alertBox('warn', '后端返回成功，但没找到完整路线（可能是迭代次数不够，或目标不在已知模板覆盖范围内）'))
       } else {
-        // 未配置 / 失败：把后端说的话原样给人看，并给出可执行的一步
+        // 内存不够是"能解释、有下一步"的一类，单独渲染 —— 它跟"没装好"完全不是一回事
+        const OOM_TITLES = {
+          retro_not_configured: '逆合成后端还没装好',
+          retro_insufficient_memory: '内存不够，先别跑',
+          killed_likely_oom: '跑起来之后被系统杀了（多半是内存）',
+        }
         body = h('div', null,
-          alertBox(r.code === 'retro_not_configured' ? 'warn' : 'err',
+          alertBox(r.code === 'retro_not_configured' || r.code === 'retro_insufficient_memory' ? 'warn' : 'err',
             h('div', null,
               h('div', { style: { fontWeight: 600, marginBottom: 4 } },
-                r.code === 'retro_not_configured' ? '逆合成后端还没装好' : '逆合成没跑成'),
+                OOM_TITLES[r.code] || '逆合成没跑成'),
               h('div', null, r.message || '未知错误'))),
+          r.code === 'retro_insufficient_memory'
+            ? h('div', null,
+              h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', margin: '10px 0' } },
+                kv('可用内存', `${r.available_mb} MB`),
+                kv('估需内存', `${r.required_mb} MB`, { soft: true })),
+              r.estimate_parts
+                ? section('估算构成', h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+                  Object.entries(r.estimate_parts).map(([k, v]) => kv(k, `${v} MB`))))
+                : null,
+              r.suggestions?.length
+                ? section('怎么办', h('ol', { style: { margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.9 } },
+                  r.suggestions.map((x, i) => h('li', { key: i }, x))))
+                : null,
+              h('div', { style: { marginTop: 10, display: 'flex', gap: 6 } },
+                button('仍要试一次（可能被系统杀掉）', () => { void run(true) }, { id: 'retro-force' })),
+            )
+            : null,
           r.missing?.length
             ? section('缺这些文件', h('div', { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
               r.missing.map((m, i) => h('div', { key: i, style: { fontSize: 12 } }, mono(m)))))
@@ -689,7 +717,7 @@ window.__ModuleLoader__.load({
               if (!smiles) { say('画板是空的', 'warn'); return }
               setState({ draftInput: smiles, smiles })
             }, { id: 'retro-take' })),
-          button('开始逆合成', () => { void run() }, { id: 'retro-run', primary: true, big: true, busy: s.retroBusy }),
+          button('开始逆合成', () => { void run(false) }, { id: 'retro-run', primary: true, big: true, busy: s.retroBusy }),
           h('div', { style: { fontSize: 11, color: C.muted, lineHeight: 1.7 } },
             '迭代 100 · 每步展开 50 · 启用价值函数。',
             h('br'),

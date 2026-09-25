@@ -185,12 +185,21 @@ function runJsonProcess({ command, args, payload, env, cwd, timeoutMs, label }) 
         message: `${label} 启动失败：${error?.message ?? error}`,
       })
     })
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       const text = stdout.trim()
       if (!text) {
+        // 被信号杀死（尤其 SIGKILL）而没有任何输出，最常见的成因就是**内存不足**：
+        // Retro* 光读 2300 万条 building blocks 就要几个 GB，窄内存机器上会被
+        // 内核直接 OOM-kill —— 这时子进程连写一行错误的机会都没有。
+        const oom = signal === 'SIGKILL'
         finish({
-          ok: false, code: 'no_output',
-          message: `${label} 没有输出（退出码 ${code}）`,
+          ok: false,
+          code: oom ? 'killed_likely_oom' : 'no_output',
+          message: oom
+            ? `${label} 被系统杀掉了（SIGKILL），而且没来得及输出任何东西 —— 通常意味着内存不够。` +
+              '这个后端在加载模型数据时需要数 GB 空闲内存；可以先看看 free -g 还有多少。'
+            : `${label} 没有输出（退出码 ${code}）`,
+          signal: signal ?? null,
           stderr: stderr.trim().slice(0, 2000),
         })
         return

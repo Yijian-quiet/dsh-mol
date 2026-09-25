@@ -88,6 +88,45 @@ https://www.dropbox.com/s/ar9cupb18hv96gj/retro_data.zip?dl=0
 > 体积：README 只说是数据集 + 预训练模型，**GB 级**；本次勘察没有下载，所以给不出精确大小 ——
 > 下载前先确认磁盘空间和网络。
 
+## 3.5 真正的门槛是内存（2026-09-25 实测）
+
+数据装好之后，**下一个拦住你的不是代码，是 RAM**。本机实测（python 3.10 + pandas）：
+
+| 阶段 | 实测/估算 | 说明 |
+|---|---|---|
+| 读 building blocks | **3917 MB 峰值 RSS** | `origin_dict.csv` 1298 MB / **2308 万条**；大头是这些字符串本身 |
+| 同上，换 `usecols` / 分块读 | 3901 / 3650 MB | 只省一点 —— 说明不是 pandas 的锅 |
+| 模板规则 | ~127 MB | `template_rules_1.dat` 85 MB |
+| rollout 模型权重 | ~1125 MB | `saved_rollout_state_1_2048.ckpt` 751 MB |
+| 价值网络 | ~1 MB | 可忽略 |
+| torch + rdchiral + rdkit 运行时 | ~600 MB | |
+| **合计（含 400 MB 余量）** | **≈ 5950 MB** | 桥接脚本给的就是这个数 |
+
+桥接脚本因此在**加载任何东西之前**读 `/proc/meminfo` 做一次预检
+（`BLOCKS_FILE_FACTOR = 3.0`：building blocks 按文件大小的 3 倍估，
+所以换子集数据文件时估算跟着走）。不够时返回：
+
+```json
+{"ok": false, "code": "retro_insufficient_memory",
+ "available_mb": 2875, "required_mb": 5950,
+ "estimate_parts": {"building_blocks": 3697, "runtime": 600, "...ckpt": 1125},
+ "suggestions": ["...", "..."]}
+```
+
+这一步不是多此一举：不预检的话，进程会在读 CSV 时被内核 OOM-kill，
+**连一行报错都写不出来**（宿主半边只能看到一个 `SIGKILL`）。
+带 `"force": true` 可以跳过预检硬跑（工作台上就是那个「仍要试一次」按钮）。
+
+**WSL2 用户注意**：WSL2 默认只分到宿主内存的 50%。宿主 16 GB → WSL 里只有 7.7 GB，
+而上面这张表要 ~6 GB，加上浏览器/编辑器就爆了。改 `C:\Users\<你>\.wslconfig`：
+
+```ini
+[wsl2]
+memory=12GB
+```
+
+然后 `wsl --shutdown` 重开。这比关掉一堆服务省事，也不会每次都来一遍。
+
 ## 4. 装起来（可复制的命令）
 
 设一个变量少打点字（路径按你的实际情况改）：
