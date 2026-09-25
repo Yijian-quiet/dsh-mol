@@ -4,7 +4,7 @@
 #    （`polymer-ai-platform/mcp`，只绑回环的只读代理）。
 #    公开仓库里保留它，是作为「如何接入一个私有 HTTP MCP 服务」的示例。
 #
-# 它接进来的 6 个工具（模型侧名字形如 `mcp__polymer__polymer_predict`）：
+# 它接进来的 6 个工具（模型侧名字形如 `mcp__platform__polymer_predict`）：
 #     polymer_predict        性质预测（Tg / ε，真推理）
 #     polymer_render         结构渲染
 #     polymer_assemble       单体组装成聚合物
@@ -38,7 +38,7 @@
     - id: polymer-platform
       name: '@deepseek-ai/dsh-mcp-client'
       config:
-        serverName: polymer
+        serverName: platform
         transport: streamable-http
         url: !!js process.env.POLYMER_MCP_URL ?? 'http://127.0.0.1:9100/mcp'
         headers:
@@ -47,6 +47,8 @@
           #    后面再接 `+ …` 会直接解析失败（踩过一次）。
           Authorization: !!js String('Bearer ') + (process.env.POLYMER_MCP_TOKEN ?? '')
         # 真推理可能慢（尤其冷启动），给足时间
+        # 注：serverName 用 platform（不是 polymer）—— 工具名自带 polymer_ 前缀，
+        #     再用 polymer 会得到 mcp__polymer__polymer_predict 这种双前缀（2026-09-23 与小小静对齐）
         toolCallTimeoutMs: 120000
         # 平台没起时不拖垮 DSH 启动：本地工具照常可用，只是这 6 个不出现
         failOnStartupError: false
