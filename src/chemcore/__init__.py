@@ -10,6 +10,7 @@
 对外 API：
     check / canonicalize          —— 校验与规范化
     properties                    —— 性质计算
+    analyze / druglikeness        —— 类药性、结构警报、骨架
     draw / draw_grid              —— 画分子
     convert / convert_many        —— 格式互转
     standardize / dedupe          —— 结构标准化与去重
@@ -24,6 +25,7 @@
     才用 ``importlib.import_module("chemcore.draw")`` 取模块本体。
 """
 
+from .analyze import DEFAULT_CATALOGS as DEFAULT_ALERT_CATALOGS, analyze, druglikeness
 from .batch import batch_clean, read_smiles_column
 from .convert import FORMATS, convert, convert_many, sniff
 from .draw import draw, draw_grid, out_dir
@@ -37,7 +39,7 @@ __version__ = "0.0.1"
 
 __all__ = [
     "CheckResult", "Diagnostic", "check", "canonicalize",
-    "properties",
+    "properties", "analyze", "druglikeness", "DEFAULT_ALERT_CATALOGS",
     "draw", "draw_grid", "out_dir",
     "convert", "convert_many", "sniff", "FORMATS",
     "standardize", "dedupe",

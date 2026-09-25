@@ -488,6 +488,124 @@ def _():
         cc.set_lang(original)
 
 
+# ---------------------------------------------------------------- analyze / cli
+@case("analyze: 阿司匹林的类药性与骨架对得上已知值")
+def _():
+    d = cc.druglikeness(ASPIRIN)
+    eq(d["formula"], "C9H8O4", "分子式")
+    eq(d["lipinski_violations"], 0, "阿司匹林不该违反 Lipinski")
+    close(d["qed"], 0.55, 0.02, "QED")
+    eq(d["murcko_scaffold"], "c1ccccc1", "骨架是苯环")
+    true(0.0 <= d["qed"] <= 1.0, "QED 必须落在 0-1")
+    # 规则明细必须齐全：4 条 Lipinski + 2 条 Veber
+    eq(len(d["rules"]), 6, "规则条数")
+    true(all("passed" in r and "detail" in r for r in d["rules"]), "每条规则都要有判定与明细")
+
+
+@case("analyze: 结构警报能命中（阿司匹林的酚酯）")
+def _():
+    d = cc.druglikeness(ASPIRIN, catalogs=("BRENK",))
+    true(any("phenol_ester" in a["description"] for a in d["structural_alerts"]),
+         f"应命中 phenol_ester，实际 {d['structural_alerts']}")
+    eq(d["catalogs_checked"], ["BRENK"], "查了哪些目录要如实回报")
+    # 干净的分子不该无端报警
+    eq(cc.druglikeness("CCO")["structural_alerts"], [], "乙醇不该有结构警报")
+
+
+@case("analyze: 综合分析与 properties 的分子式一致（不许两套口径）")
+def _():
+    a = cc.analyze(ASPIRIN)
+    p = cc.properties(ASPIRIN)
+    eq(a["formula"], p["formula"], "分子式")
+    eq(a["canonical"], p["canonical"], "规范化 SMILES")
+    eq(a["properties"]["mw"], p["mw"], "分子量")
+    true("lipinski_violations" in a["druglikeness"], "综合分析要带类药性")
+
+
+@case("analyze: 坏结构抛人话 ValueError，不是 RDKit 英文日志")
+def _():
+    try:
+        cc.analyze("C1CC")
+        raise AssertionError("应当抛 ValueError")
+    except ValueError as exc:
+        true("环闭合" in str(exc) or "配对" in str(exc), f"应是人话诊断：{exc}")
+
+
+def _cli(payload):
+    """按 CLI 协议调一次：JSON 进 len(stdout) 一行 JSON 出。"""
+    import json as _json
+    import subprocess
+    src = os.path.join(os.path.dirname(__file__), "..", "src")
+    proc = subprocess.run(
+        [sys.executable, "-m", "chemcore.cli"],
+        input=payload if isinstance(payload, str) else _json.dumps(payload),
+        capture_output=True, text=True, timeout=90,
+        env={**os.environ, "PYTHONPATH": src},
+    )
+    return proc, _json.loads(proc.stdout)
+
+
+@case("cli: 成功响应形如 {ok, op, result}")
+def _():
+    proc, out = _cli({"op": "properties", "smiles": "CCO"})
+    eq(proc.returncode, 0, "退出码")
+    eq(out["ok"], True, "ok")
+    eq(out["op"], "properties", "op 回显")
+    eq(out["result"]["formula"], "C2H6O", "分子式")
+    eq(proc.stderr.strip(), "", "成功时 stderr 不该有噪音（否则上层会以为是故障）")
+
+
+@case("cli: 领域错误也是结构化响应，且退出码为 0")
+def _():
+    proc, out = _cli({"op": "properties", "smiles": "C1CC"})
+    eq(proc.returncode, 0, "领域错误属于业务答案，不该用非零退出码")
+    eq(out["ok"], False, "ok")
+    eq(out["code"], "domain_error", "code")
+    true("环闭合" in out["message"] or "配对" in out["message"], f"人话原因：{out['message']}")
+
+
+@case("cli: 未知 op / 坏 JSON / 缺字段都给人话，不崩")
+def _():
+    _, out = _cli({"op": "no_such_op"})
+    eq(out["code"], "unknown_op", "未知 op")
+    true("可用的 op" in out["message"], "应列出可用 op")
+    _, out = _cli("这不是 JSON")
+    eq(out["code"], "invalid_json", "坏 JSON")
+    _, out = _cli({"smiles": "CCO"})
+    eq(out["code"], "invalid_request", "缺 op")
+    _, out = _cli({"op": "properties"})
+    eq(out["code"], "invalid_request", "缺参数应报调用错误")
+
+
+@case("cli: 注册表里的每个 op 都能真跑通（防止文档吹了没实现的）")
+def _():
+    import importlib
+    cli = importlib.import_module("chemcore.cli")
+    samples = {
+        "check": {"smiles": "CCO"},
+        "canonicalize": {"smiles": "OCC"},
+        "properties": {"smiles": "CCO"},
+        "druglikeness": {"smiles": "CCO"},
+        "analyze": {"smiles": "CCO"},
+        "substructure": {"smiles": "c1ccccc1", "smarts": "c1ccccc1"},
+        "similarity": {"a": "CCO", "b": "CCCO"},
+        "standardize": {"smiles": "[Na+].CC(=O)[O-]"},
+        "dedupe": {"smiles_list": ["CCO", "OCC"]},
+        "convert": {"value": "CCO", "to": "inchikey"},
+        "batch_clean": {"smiles_list": ["CCO", "C1CC"]},
+        "draw": {"smiles": "CCO"},
+        "draw_grid": {"smiles_list": ["CCO", "CCC"]},
+        "descriptors": {},
+    }
+    eq(sorted(samples), sorted(cli.OPS), "每个 op 都要有测试样本（新增 op 请补一条）")
+    for op, params in samples.items():
+        with tempfile.TemporaryDirectory() as d:
+            if op in ("draw", "draw_grid"):
+                params = {**params, "out": d}
+            out = cli.run({"op": op, **params})
+            eq(out["ok"], True, f"{op} 应成功：{out.get('message')}")
+
+
 # ---------------------------------------------------------------- 汇总
 def check_readme_count():
     """README 里写的用例数必须与实际一致 —— 文档数字最容易悄悄过期。"""

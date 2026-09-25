@@ -9,3 +9,8 @@ dsh-mol-out/
 out/
 .pytest_cache/
 .DS_Store
+
+# Ketcher 独立构建：116 MB，用 dsh-ui/scripts/fetch-ketcher.mjs 现下
+ketcher/
+dsh-ui/ketcher/
+dsh-ui/.ketcher-*.zip

@@ -104,6 +104,26 @@ def chem_properties(smiles: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def chem_analyze(smiles: str) -> dict[str, Any]:
+    """分子"深看一层"：基础性质 + 类药性 + 结构警报 + Murcko 骨架，一次给全。
+
+    适合回答"这分子像不像药""有没有毒理警戒结构""骨架是什么"。
+    返回里每一条规则都带 passed 与阈值明细，**不给"能否成药"的总评** ——
+    那不是几个阈值的与运算，交给人判断更诚实。
+    QED 是"接近已知药物性质分布"的程度（Bickerton 2012 口径），不是活性预测。"""
+    return cc.analyze(smiles)
+
+
+@mcp.tool()
+def chem_druglikeness(smiles: str, catalogs: list[str] | None = None) -> dict[str, Any]:
+    """只要类药性与结构警报（Lipinski / Veber / QED / PAINS / BRENK / 骨架）。
+
+    catalogs 可指定查哪些警报目录，默认 PAINS + BRENK；也可传 NIH / ZINC
+    （误报更多，需要时再开）。"""
+    return cc.druglikeness(smiles, catalogs=tuple(catalogs) if catalogs else cc.DEFAULT_ALERT_CATALOGS)
+
+
+@mcp.tool()
 def chem_draw_molecule(
     smiles: str,
     fmt: str = "png",

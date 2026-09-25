@@ -1,142 +1,68 @@
-# dsh-mol · a local-first chemistry workbench
+<div align="center">
+
+# dsh-mol · a chemistry workbench
+
+**A molecule sketchpad plus a local RDKit workbench, sitting next to your AI agent's chat box.**
+
+Draw a structure → click once → formula / MW / logP / TPSA / drug-likeness / structural alerts **computed on the spot** →
+drop the structure into the conversation and let the agent take it from there.
+
+Pure RDKit. **No network, no API key, no external service.** Also usable as a stdio MCP server, callable directly by Claude Code / Codex.
 
 [![ci](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml/badge.svg)](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml)
-
+![python](https://img.shields.io/badge/python-3.9%2B-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+![tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
+![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | English
 
-Turn the most frequent small chores in chemistry into tools an **AI agent can call
-reliably**: validate SMILES, draw structures, compute properties, convert formats,
-standardize, clean batches.
+<img src="docs/workbench-analyze.png" alt="Chemistry workbench · Analyze tab" width="820">
 
-Pure RDKit. **No network, no API key, no external service.** Exposed as a
-**stdio MCP server**, so DeepSeek Harness / Claude Code / Codex can use it directly.
-
-![batch drawing with Chinese legends](docs/monomers.png)
-
-*`draw_grid` output: 12 monomers rendered, 2 malformed entries skipped — each with its
-reason recorded, nothing dropped silently.*
+</div>
 
 ---
 
-## Status
+## Understand it in 30 seconds
 
 | | |
 |---|---|
-| Version | `0.0.1` (early; API may change) |
-| Tests | 44 core cases + 11 self-checks + MCP protocol smoke test, **all green** |
-| Published | ⏳ not yet on PyPI / GitHub |
-| Deps | `rdkit` (core); `mcp` (MCP adapter only) |
-| License | MIT |
+| 🎨 **Draw molecules** | One button next to the chat box → a Ketcher canvas overlay. **The chat is not pushed aside**, and one click inserts the structure into the input box |
+| ⚡ **Instant analysis** | Formula, MW, exact mass, logP, TPSA, HBD/HBA, rings, Fsp³, stereocenters — computed **right now** by local RDKit, no model call, no waiting on an LLM |
+| 💊 **Drug-like or not** | Lipinski / Veber rule-by-rule verdicts, QED, PAINS / BRENK structural alerts, Murcko scaffold |
+| 🧹 **Dirty-data first aid** | Validation (plain-language errors + character positions), standardization (every change recorded), dedupe, batch cleanup |
+| 🧭 **Retrosynthesis** | The tab is in place and the backend is pluggable (Retro* today). **If the model data is not installed, it says so honestly — it never invents a route** |
+| 🔌 **Two ways in** | The graphical workbench is for people; the same core reaches agents over MCP — **one implementation, two entry points** |
+
+> Some context: npm has **618** DSH plugins, of which **0** are chemistry / materials / molecules.
+> This repo exists to fill that gap.
 
 ---
 
-## Why not just wrap RDKit
-
-Because a naive wrapper hands an AI agent three traps, and all three bite in real
-research work.
-
-### 1. RDKit does not raise on parse failure — it returns `None`
-
-The reason is written to a C++ stderr log. A naive wrapper gives the model a bare
-`None` with no idea what went wrong. This toolchain reroutes, captures and
-**translates** that log into a human-readable diagnostic, with a **character
-position** where one can be determined:
-
-```jsonc
-// chem_check_smiles("C1CC")
-{ "level": "error",
-  "diagnostics": [
-    { "code": "unclosed_ring",
-      "message": "环闭合标记没有配对：SMILES 里的成环数字（如 C1...C1）出现次数必须是偶数" },
-    { "code": "unclosed_ring_position",
-      "message": "成环编号 1 只出现了 1 次（最后一次在第 1 个字符）：成环数字必须成对出现，如 C1CC1 而不是 C1CC" }] }
-```
-
-(Diagnostics are written in Chinese by default; set `MOL_LANG=en` for English.
-The `code` field is language-independent — assert on `code`, never on the message text.)
-
-### 2. `MolFromSmiles("")` returns **an empty 0-atom molecule**, not `None`
-
-A naive wrapper therefore judges empty input as *valid*. And `"   "` (whitespace)
-**does** return `None` — the same function, two different behaviours for two
-different kinds of "empty". This toolchain handles both at the domain layer.
-
-### 3. The result is **three-valued**, not pass/fail
-
-`[Fe+9]` parses, but the charge is absurd. That deserves a *warning*, not rejection:
-
-| level | meaning |
-|---|---|
-| `ok` | clean |
-| `warn` | parses, but suspicious (unusual charge, dubious aromaticity…), with reasons |
-| `error` | parse failure, with a human-readable reason and a locatable character position |
-
-**And batch APIs never drop data silently.** Every row is accounted for
-(ok / warn / failed) with failures listed individually — in research data,
-"two rows quietly disappeared" is more dangerous than an error.
-
----
-
-## Install
-
-**Not yet on PyPI / npm — but you do not have to wait.** Install straight from
-GitHub (both paths verified):
+## Quick start
 
 ```bash
-# core (RDKit only)
-pip install rdkit
-
-# this repo including the MCP adapter — from git, no PyPI account needed
+# 1) Install the core + MCP adapter (no PyPI account needed — straight from git)
 pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
 
-# development mode (edits take effect immediately)
-git clone https://github.com/Yijian-quiet/dsh-mol.git && cd dsh-mol
-pip install -e ".[mcp]"
+# 2) Install the plugin into your DSH profile (no npm account needed; pnpm handles git subdirectories)
+dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-bundle'
+dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-ui'   # ← the graphical workbench
 
-# or run straight from source, no install
-export PYTHONPATH=/path/to/dsh-mol/src
+# 3) Open DSH Web and click "workbench" to the left of the input box
 ```
 
-Self-check (no MCP client required):
+The workbench needs a local `python3` that can `import rdkit`; the canvas is a [Ketcher](https://github.com/epam/ketcher) static build that **renders locally in the browser and goes through no backend**.
+
+<details>
+<summary>Command line only, or a different MCP client?</summary>
 
 ```bash
-dsh-mol-mcp --selftest
-# without installing: PYTHONPATH=src python3 -m dsh_mol_mcp.server --selftest
+dsh-mol-mcp --selftest          # self-check first (no MCP client required)
 ```
-
-## Use with DeepSeek Harness
-
-### Option 1 (recommended): install the bundle
-
-**No npm account needed** — pnpm supports git subdirectories, so install straight
-from GitHub (verified):
-
-```bash
-dsh plugin --profile <profile> add 'github:Yijian-quiet/dsh-mol#path:dsh-bundle'
-```
-
-Once published to npm (not yet), this becomes:
-
-```bash
-dsh plugin --profile <profile> add dsh-mol
-```
-
-> Prerequisite: an executable `dsh-mol-mcp` on the Python side (provided by the
-> install step above).
-
-The bundle lives in [`dsh-bundle/`](dsh-bundle/README.md) and **contributes
-configuration only, no JS code** — it inserts one `@deepseek-ai/dsh-mcp-client`
-row pointing at this repo's stdio server, so the tool implementations exist in
-exactly one place (Python) and cannot drift.
-
-Paths are resolved from environment variables via `!!js` expressions rather than
-hard-coded absolutes, so one patch works across machines and install modes. See
-`dsh-bundle/README.md`.
-
-### Option 2: overlay a patch (other MCP clients, or no install)
 
 ```yaml
+# overlay the patch by hand; stdio transport, fully local
 - insert:
     - id: dsh-mol
       name: '@deepseek-ai/dsh-mcp-client'
@@ -147,60 +73,109 @@ hard-coded absolutes, so one patch works across machines and install modes. See
         args: ['-m', 'dsh_mol_mcp.server']
         env:
           PYTHONPATH: /path/to/dsh-mol/src
+          MOL_OUT: /path/to/out
 ```
+
+Tools show up on the model side as `mcp__chem__chem_check_smiles` and friends.
+</details>
+
+---
+
+## What the workbench looks like
+
+Three tabs, one molecule:
+
+<table>
+<tr>
+<td width="33%"><img src="docs/workbench-draw.png" alt="Draw tab"><br><b>① Draw</b><br>The full Ketcher canvas (the overlay drags and maximizes). "Insert into chat" writes the SMILES into the input box — <b>the text is the structure alone, with no internal path smuggled in</b>.</td>
+<td width="33%"><img src="docs/workbench-analyze.png" alt="Analyze tab"><br><b>② Analyze</b><br>Input and buttons on the left, numbers on the right. Basic properties + drug-likeness + structural alerts + scaffold in one pass, all computed live by local RDKit.</td>
+<td width="33%"><img src="docs/workbench-retro.png" alt="Retrosynthesis tab"><br><b>③ Retrosynthesis</b><br>Target molecule → multi-step route. With no model data installed, <b>it tells you what to download and where to put it</b> instead of pretending it computed something.</td>
+</tr>
+</table>
+
+### Why isn't the drawing rendered in the panel?
+
+Because **an image should follow the prose that explains it**. The thumbnail in the workbench only confirms *which molecule* was computed;
+the real structure image is drawn inline by the agent in its reply (`read_image`), right next to its explanation of that molecule.
+
+That call came after two rejected versions:
+first "the panel eats the main area and squeezes the chat out", then "a second preview inside the canvas is useless".
+Now **the chat keeps its layout and the workbench sits beside it**.
+
+---
+
+## Why not just wrap RDKit
+
+Because a naive wrapper hands an AI agent three traps, and all three bite for real in research work:
+
+### 1. When RDKit fails to parse it **does not raise** — it returns `None`
+
+The reason goes to a C++ stderr log. Under a naive wrapper the model only gets an empty `None` and has no idea what went wrong.
+This toolchain reroutes and captures the RDKit log, **translates it into plain language**, and gives a **character position** where one can be located:
+
+```jsonc
+// chem_check_smiles("C1CC")
+{ "level": "error",
+  "diagnostics": [{ "code": "unclosed_ring",
+                    "message": "环闭合标记没有配对：SMILES 里的成环数字（如 C1...C1）出现次数必须是偶数" }] }
+
+// chem_check_smiles("CC(=O)O)")   ← one closing paren too many, located at character 7
+{ "level": "error", "position": 7,
+  "diagnostics": [{ "code": "extra_paren", "message": "多余的右括号：) 比 ( 多" }] }
+```
+
+### 2. `MolFromSmiles("")` does not return `None` — it returns **an empty 0-atom molecule**
+
+A naive implementation would call empty input **valid**. Yet `"   "` (whitespace only) **does** return `None` —
+one function, two kinds of empty input, two behaviours. This toolchain catches both at the domain layer.
+
+### 3. Results are **three-valued**, not pass/fail
+
+`[Fe+9]` parses, but the charge is absurd. That deserves a *warning*, not a rejection:
+
+| level | meaning |
+|---|---|
+| `ok` | clean |
+| `warn` | parses, but the structure is suspicious (unusual charge, dubious aromaticity…), with reasons |
+| `error` | parse failure, with a plain-language reason and a locatable character position |
+
+**And batch APIs never drop data silently.** Every row is accounted for (ok / warn / failed),
+with failures listed one by one — in research data, "two rows quietly went missing" is far more dangerous than an error.
+
+### Diagnostics are bilingual
+
+Chinese by default; one environment variable switches an English environment over:
 
 ```bash
-dsh --profile headless --patch dsh/dsh-mol.cordis.yml "validate C1CC"
+export MOL_LANG=en        # zh (default) / en
 ```
 
-Tools appear to the model as `mcp__chem__chem_check_smiles` and friends.
+> ⚠️ **The contract is `code`, not the message text.** `code` (`unclosed_ring` / `valence` …) is language-independent,
+> and it **does not change `level` / `position` / `canonical` when the language changes** — dedicated regression cases lock this down.
 
-> **Images and the UI**: `chem_draw_molecule` / `chem_draw_grid` write a file and
-> return its **path**. In a context that mounts the `standard` agent preset
-> (`dsh web` does), the model can then call `present` to surface it as a native
-> deliverable. `headless` mounts no presets, so `present` is unavailable there —
-> that is expected, not a bug.
+---
 
-### Optional: wiring in network-backed deep services
-
-The local tools cover **general chemistry fundamentals** (offline, zero network).
-Domain-depth capabilities (polymer property prediction, retrosynthesis) are a
-second leg and belong to a **remote MCP server**.
-
-[`dsh/polymer-platform.cordis.yml`](dsh/polymer-platform.cordis.yml) is a worked
-**example** — it mounts a private HTTP MCP server (loopback-only read-only proxy,
-Bearer auth):
-
-```bash
-export POLYMER_MCP_TOKEN=...        # token travels via env only, never in a file
-dsh --profile headless \
-    --patch dsh/dsh-mol.cordis.yml \
-    --patch dsh/polymer-platform.cordis.yml \
-    "predict Tg for PET"
-```
-
-Two deliberate choices:
-
-- It is **not** part of `dsh-bundle/`. A public bundle must not hard-depend on
-  anyone's private service; this overlay stays in the repo as a template for
-  wiring a private HTTP MCP server.
-- It sets `failOnStartupError: false`, so **a down platform does not break DSH
-  startup** — those tools simply do not appear, and the local tools keep working.
-
-## Tools
+## Tools (12, all local-only)
 
 | Tool | Purpose |
 |---|---|
-| `chem_check_smiles` | validate + canonicalize: three-valued result, human-readable reasons, character position |
+| `chem_check_smiles` | validate + canonicalize: three-valued result, plain-language reasons, character position |
 | `chem_properties` | formula / MW / exact mass / logP / TPSA / HBD / HBA / rings / stereocenters |
+| `chem_analyze` | everything at once: basic properties + drug-likeness + structural alerts + Murcko scaffold |
+| `chem_druglikeness` | Lipinski / Veber rule-by-rule verdicts, QED, PAINS / BRENK structural alerts |
 | `chem_draw_molecule` | render a structure (PNG/SVG, optional atom indices, substructure highlight) → returns a **file path** |
-| `chem_draw_grid` | multi-molecule grid for reports/papers; bad entries skipped but recorded |
-| `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula |
-| `chem_standardize` | strip salts, disconnect metals, neutralize, normalize — **recording every change** |
+| `chem_draw_grid` | multi-molecule grid (for reports/papers); bad entries skipped but recorded one by one |
+| `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula conversion |
+| `chem_standardize` | strip salts / disconnect metals / neutralize / normalize — **recording every change** |
 | `chem_dedupe` | deduplicate by canonical structure, with duplicate groups |
 | `chem_substructure_match` | SMARTS substructure matching, returns atom indices |
 | `chem_similarity` | fingerprint similarity (morgan / rdkit / maccs) |
-| `chem_batch_clean` | clean a column of SMILES: counts + failure list (+ optional CSV report) |
+| `chem_batch_clean` | clean a column of SMILES: count summary + failure list (+ optional CSV report) |
+
+The workbench's "Analyze" tab and these tools **share the same `chemcore`** — there is no drift between "the UI computes one thing and the agent another".
+
+> `chem_core` also has a `python3 -m chemcore.cli` JSON entry point (one JSON line in, one JSON line out);
+> the workbench's live numbers go through it. That is the seam where "tools for the AI" and "a UI for people" share one implementation.
 
 ## Python API
 
@@ -208,81 +183,101 @@ Two deliberate choices:
 import chemcore as cc
 
 cc.check("C1CC").diagnostics[0].message   # '环闭合标记没有配对：…'
-cc.properties("CC(=O)Oc1ccccc1C(=O)O")    # {'formula': 'C9H8O4', 'mw': 180.161, …}
+cc.properties("CC(=O)Oc1ccccc1C(=O)O")    # {'formula': 'C9H8O4', 'mw': 180.159, …}
+cc.analyze("CC(=O)Oc1ccccc1C(=O)O")       # + QED / Lipinski / PAINS alerts / Murcko scaffold
 cc.draw("CCO", atom_indices=True)         # {'path': '…/CCO.png', …}
 cc.standardize("CC(=O)[O-].[Na+]")        # {'output': 'CC(=O)O', 'changes': [...]}
 cc.batch_clean(["CCO", "C1CC"])           # {'ok': 1, 'failed': 1, 'failed_items': [...]}
 ```
 
-## Worked example
+## Worked example: cleaning a dirty monomer table
 
-[`examples/monomer_cleanup.py`](examples/monomer_cleanup.py) takes a deliberately
-messy monomer table (duplicate written two ways, a sodium salt, a ring-closure
-typo, an impossible valence, an absurd charge) and runs the whole chain:
+[`examples/monomer_cleanup.py`](examples/monomer_cleanup.py) takes a deliberately messy monomer table
+(the same molecule written two ways, a sodium salt, a ring-closure typo, an impossible valence, an absurd charge) and runs the whole chain:
 
 ```bash
 python3 examples/monomer_cleanup.py
 ```
 
-It reports `11 ok · 1 warn · 2 failed`, merges the duplicate, walks the salt
-standardization step by step, and draws the 12 renderable structures while
-listing the 2 that were skipped — with reasons.
+It reports `11 ok · 1 warn · 2 failed`, merges the duplicates, walks through each salt-stripping and neutralization step,
+and draws the 12 renderable structures while listing the 2 skipped ones together with their reasons.
+
+![batch drawing with Chinese legends](docs/monomers.png)
+
+## Retrosynthesis
+
+The retrosynthesis tab's backend is **pluggable**: the plugin uses `child_process` to start a process that takes JSON on stdin
+and writes JSON to stdout, pointing at the Retro* bridge script in this repo by default.
+
+- When the backend is **not installed**: it returns a structured diagnostic (which files are missing, where to download them, where to put them) and the UI shows that honestly —
+  **it does not invent a route**, and it does not paper over the gap with something that merely "looks like" one
+- To swap the backend (AiZynthFinder / your own RetroChimera / your group's internal server): keep to the same
+  stdin/stdout protocol and point `retroCommand` at it
+
+Installing Retro* (source + model data, GB-scale) is covered in **[docs/RETROSYNTHESIS.md](docs/RETROSYNTHESIS.md)**.
 
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 44 core cases (zero deps, no pytest needed)
-PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real client, real server)
+PYTHONPATH=src python3 tests/run_tests.py    # 52 core cases (zero deps, no pytest needed)
+PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real server, real tool calls)
+bash tests/run_all.sh                        # the two above plus self-checks, in one shot
 ```
 
-**Acceptance script** (all 10 tools once, with verdicts, timings and output paths):
+The UI is accepted headless with Playwright (26 assertions, covering "can you still use the chat after opening the workbench",
+"are those numbers actually computed", and "does it invent a route when the backend is not installed"):
 
 ```bash
-python3 examples/acceptance.py               # artifacts land in ~/dsh-mol-out/ by default
+dsh web --port 3081 --no-open > /tmp/chemver.log 2>&1 &
+CHEM_BASE=http://127.0.0.1:3081 \
+CHEM_TOKEN=$(grep -o 'token=[^ ]*' /tmp/chemver.log | cut -d= -f2) \
+node dsh-ui/tests/verify-ui.cjs
 ```
+
+> Do not experiment on the port you are using — start a separate instance and shut it down when you are done.
 
 ## Design principles
 
-1. **Zero network** — every computation happens in-process.
-2. **Zero extra dependencies** — core needs only RDKit; the tests don't even need pytest.
-3. **Failures speak human** — RDKit's English C++ logs become graded diagnostics.
-4. **No silent data loss** — batch APIs account for every row.
-5. **State your units** — `logP` is flagged as a Crippen estimate; `mw` vs `exact_mw` are explained.
-6. **Write files, return paths** — images are not stuffed into protocol payloads; they stay reproducible, diffable and paper-ready.
+1. **Zero network**: every computation happens in this process.
+2. **Zero extra dependencies**: the core needs only RDKit; the tests don't even need pytest.
+3. **Failures speak human**: RDKit's English C++ logs become graded diagnostics.
+4. **No silent data loss**: batch APIs report every row.
+5. **State your terms**: logP is flagged as a Crippen estimate; `mw` and `exact_mw` are each explained.
+6. **Write files, return paths**: images are not stuffed into protocol payloads but written to disk and returned as a path — reproducible, versionable, paper-ready.
+7. **Say what's missing**: no experimental values, no activity prediction; if the retrosynthesis backend isn't installed, say it isn't installed.
 
 ## Roadmap
 
-- **v0.1 (current)** — the 10 local tools above
-- **v0.2** — DSH bundle polish (settings page, richer UI affordances)
-- **v0.3** — network-backed deep services over MCP (property prediction, retrosynthesis)
-- **Undecided** — image → structure (OCSR) needs a several-hundred-MB model; it is
-  **not** a "light local tool" and will be a pluggable backend
+- **v0.1 (current)**: 12 local-only tools + the chemistry workbench (canvas / analyze / retrosynthesis framework)
+- **v0.2**: retrosynthesis backend running end to end (Retro* data in place) + view routes inside the workbench
+- **v0.3**: more analysis cards (pKa / conformers / PK properties), visualization upgraded to "structure + charts"
+- **Undecided**: image → structure (OCSR) needs a several-hundred-MB model, so it is **not a "light basic tool"** and will ship as a pluggable backend
 
 ## Boundaries
 
-- There are **no experimental values** here. `logP`, `TPSA` etc. are computed/estimated.
-- No image recognition, no name → structure (OPSIN).
+- There are **no experimental values** here. `logP`, `TPSA` and `QED` are computed/estimated and do not replace measurement.
+- A structural alert **does not mean** "toxic": it only means "this kind of substructure deserves a human look".
+- There is **no** image recognition and **no** name → structure (OPSIN and the like).
 - SMARTS matching is structural matching, **not** a reactivity judgement.
 - **InChI does not support the `*` dummy atom**: polymer RU-SMILES (e.g. `*OCCOC(=O)c1ccc(C(=O)O*)cc1`) **cannot** be converted to InChI / InChIKey.
-  We **refuse to return an empty string silently** (RDKit does); we raise a clear error and point you at canonical SMILES instead — precisely because dummy-atom input is the norm in this field.
+  We **do not silently return an empty string** (RDKit does); we raise a clear error and suggest canonical SMILES as the unique identifier —
+  because the most common input in this field is exactly the one carrying `*`.
+- This is `v0.0.1`: the API may change; issues are welcome.
 
 ## Repository layout
 
 ```
-src/chemcore/          pure RDKit core (single source of truth)
-src/dsh_mol_mcp/ stdio MCP adapter
-dsh-bundle/            DSH bundle (configuration only, pointing at the MCP server)
-dsh/                   manual overlay patch (absolute paths, for hand-editing)
-tests/                 zero-dependency tests + MCP protocol smoke
-examples/              worked example
-docs/                  images
+src/chemcore/          pure RDKit core (single source of truth) + JSON CLI entry
+src/dsh_mol_mcp/       stdio MCP adapter (12 tools)
+dsh-ui/                chemistry workbench (DSH client plugin: host half + browser half)
+dsh-ui/retro/          retrosynthesis backend bridge (pluggable, Retro* by default)
+dsh-bundle/            DSH bundle (configuration only, pointing at the MCP server above)
+dsh/                   patch for manual overlay (hard-coded local paths)
+tests/                 zero-dependency tests + MCP protocol smoke + Playwright UI acceptance
+docs/                  demo images and deep-dive docs
 ```
 
-## License
-
-MIT
-
-## Requirement worth knowing
+## A requirement worth knowing
 
 **The MCP Python SDK must be 1.x**:
 
@@ -290,7 +285,16 @@ MIT
 pip install 'mcp>=1.0,<2'
 ```
 
-SDK **2.x renamed `FastMCP` to `MCPServer`** with breaking API changes. Our `[mcp]`
-extra pins `<2`, and if you end up with 2.x installed, `dsh-mol-mcp` tells you
-exactly what to do instead of dumping a traceback — this trap was found by CI on a
-clean runner, not guessed.
+SDK **2.x renamed `FastMCP` to `MCPServer`** with breaking API changes.
+Our `[mcp]` extra already pins `<2`; if you installed 2.x by hand, `dsh-mol-mcp` **tells you exactly what to do**
+(instead of dumping a traceback) — CI found this trap on a clean environment, it is not a guess.
+
+## Acknowledgements
+
+- [RDKit](https://www.rdkit.org/) — the entire chemistry core
+- [Ketcher](https://github.com/epam/ketcher) — the canvas (local wasm rendering, no network)
+- [Retro*](https://github.com/binghong-ml/retro_star) (ICML 2020) — one of the retrosynthesis backends
+
+## License
+
+MIT
