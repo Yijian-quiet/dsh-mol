@@ -24,7 +24,7 @@ reason recorded, nothing dropped silently.*
 | | |
 |---|---|
 | Version | `0.0.1` (early; API may change) |
-| Tests | 43 core cases + 11 self-checks + MCP protocol smoke test, **all green** |
+| Tests | 44 core cases + 11 self-checks + MCP protocol smoke test, **all green** |
 | Published | ⏳ not yet on PyPI / GitHub |
 | Deps | `rdkit` (core); `mcp` (MCP adapter only) |
 | License | MIT |
@@ -231,7 +231,7 @@ listing the 2 that were skipped — with reasons.
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 43 core cases (zero deps, no pytest needed)
+PYTHONPATH=src python3 tests/run_tests.py    # 44 core cases (zero deps, no pytest needed)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real client, real server)
 ```
 

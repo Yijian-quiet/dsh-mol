@@ -372,6 +372,18 @@ def _():
             true(os.path.getsize(r["path"]) > 1000, "带中文图注的 PNG 应有内容")
 
 
+@case("draw: 不同渲染选项产出不同文件名（不再互相覆盖）")
+def _():
+    # 曾经：文件名只由 SMILES 决定 → 改图注/加原子编号重画会覆盖上一张
+    with tempfile.TemporaryDirectory() as d:
+        a = os.path.basename(cc.draw(ASPIRIN, out=d)["path"])
+        b = os.path.basename(cc.draw(ASPIRIN, out=d, atom_indices=True)["path"])
+        c = os.path.basename(cc.draw(ASPIRIN, out=d, legend="阿司匹林")["path"])
+        eq(len({a, b, c}), 3, "三种不同选项应产出三个文件")
+        again = os.path.basename(cc.draw(ASPIRIN, out=d)["path"])
+        eq(again, a, "相同选项应幂等（同名覆盖）")
+
+
 @case("draw_grid: 中文图注走自绘路径")
 def _():
     with tempfile.TemporaryDirectory() as d:

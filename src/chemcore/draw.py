@@ -139,6 +139,14 @@ def _highlight(mol, smarts: str | None):
     return atoms, bonds
 
 
+def _options_digest(*parts: Any) -> str:
+    """渲染选项的短摘要（6 位十六进制），用于文件名去重。"""
+    import hashlib
+
+    payload = "|".join("" if p is None else str(p) for p in parts)
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:6]
+
+
 def draw(
     smiles: str,
     *,
@@ -197,7 +205,11 @@ def draw(
     payload = d.GetDrawingText()
     data = payload.encode("utf-8") if isinstance(payload, str) else payload
 
-    path = out_dir(out) / f"{_safe_name(smiles)}.{fmt}"
+    # 文件名带上"渲染选项"的短摘要：否则同一分子用不同选项重画会**互相覆盖**
+    # （踩过：改图注后重画，把上一张覆盖掉；随后按旧名清理又删掉了新的）。
+    # 相同选项 → 相同文件名（幂等重画仍覆盖，符合预期）。
+    tag = _options_digest(fmt, width, height, atom_indices, highlight_smarts, legend)
+    path = out_dir(out) / f"{_safe_name(smiles)}-{tag}.{fmt}"
     path.write_bytes(data)
 
     result: dict[str, Any] = {
