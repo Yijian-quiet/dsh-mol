@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
 
     // 注意：useSyncExternalStore 用 Object.is 比较快照 —— **必须换新对象**，
     // 原地改同一个对象不会触发重渲染（踩过：浮层永远不出现）。
-    let state = { open: false, sessionId: null, x: null, y: null, w: 580, h: 660 }
+    let state = { open: false, sessionId: null, x: null, y: null, w: 580, h: 560 }
     const listeners = new Set()
     const emit = () => { for (const l of listeners) l() }
     const setState = (patch) => { state = { ...state, ...patch }; emit() }
@@ -72,17 +72,6 @@ window.__ModuleLoader__.load({
     /* 化学功能按钮：读结构 → 把"带结构的指令"写进输入框（= 布置任务）        */
     /* ------------------------------------------------------------------ */
 
-    /**
-     * 本次会话的产物目录。
-     *
-     * 为什么由插件给：MCP 服务是**按插件常驻**的，它不知道调用来自哪个会话
-     * （DSH 的 MCP 客户端不转发会话身份），所以只有插件知道 sessionId。
-     * 不这么做，所有会话的产物会平铺在同一个目录里 —— 实测一个下午就乱了。
-     */
-    const outHint = (sessionId) => sessionId
-      ? `\n[产物目录：~/dsh-mol-out/sessions/${String(sessionId).replace(/^session-/, '').slice(0, 8)}/]`
-      : ''
-
     const FUNCTIONS = [
       { id: 'smiles', label: '插入结构', hint: '只把 SMILES 放进输入框' },
       { id: 'check', label: '校验结构', hint: '让 agent 校验合法性并说明问题',
@@ -105,8 +94,6 @@ window.__ModuleLoader__.load({
       const urlRef = React.useRef(null)
       const [status, setStatus] = React.useState('')
       const [ready, setReady] = React.useState(false)
-      const [preview, setPreview] = React.useState(null)
-      const [previewSmiles, setPreviewSmiles] = React.useState('')
 
       React.useEffect(() => {
         if (!s.open) { setReady(false); setStatus(''); return undefined }
@@ -117,40 +104,6 @@ window.__ModuleLoader__.load({
           else if (tries > 60) { setStatus('画板未能就绪'); clearInterval(timer) }
         }, 500)
         return () => clearInterval(timer)
-      }, [s.open])
-
-      // 结构预览：**完全前端**（Ketcher standalone 自带 indigo wasm，可离线出图）。
-      // 不走 agent、不产文件、也不受 DSH"图卡只认 read_image"那条门控的限制。
-      React.useEffect(() => {
-        if (!s.open) return undefined
-        let cancelled = false
-        let last = ''
-        const tick = async () => {
-          const k = frameRef.current?.contentWindow?.ketcher
-          if (!k || typeof k.generateImage !== 'function') return
-          let cur = ''
-          try { cur = await k.getSmiles() } catch { return }
-          if (cancelled || cur === last) return
-          last = cur
-          setPreviewSmiles(cur)
-          if (!cur) return
-          try {
-            const blob = await k.generateImage(cur, { outputFormat: 'svg' })
-            if (cancelled) return
-            const url = URL.createObjectURL(blob)
-            if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-            urlRef.current = url
-            setPreview(url)
-          } catch { /* 预览失败不影响主流程 */ }
-        }
-        const timer = setInterval(tick, 1200)
-        void tick()
-        return () => {
-          cancelled = true
-          clearInterval(timer)
-          if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null }
-          setPreview(null)
-        }
       }, [s.open])
 
       if (!s.open) return null
@@ -165,8 +118,9 @@ window.__ModuleLoader__.load({
         const smiles = await readSmiles()
         if (smiles === null) { setStatus('画板未就绪'); return }
         if (!smiles) { setStatus('画板是空的'); return }
-        const base = fn.id === 'smiles' ? smiles : fn.prompt(smiles)
-        const text = `${base}${outHint(s.sessionId)}`
+        // 不往用户要发送的文本里塞"产物目录"之类的内部提示 —— 那是噪音。
+        // 分目录由 agent 侧静默完成（见 $DSH_HOME/AGENTS.md：用 $DSH_SESSION_ID 推目录）。
+        const text = fn.id === 'smiles' ? smiles : fn.prompt(smiles)
         const result = appendToDraft(s.sessionId, text)
         setStatus(result === 'ok' ? `「${fn.label}」已写入输入框` : result)
       }
@@ -224,38 +178,6 @@ window.__ModuleLoader__.load({
           ref: frameRef, src: KETCHER_URL, title: 'Ketcher',
           style: { flex: 1, width: '100%', border: 'none', minHeight: 260 },
         }),
-        // 结构预览条：左边是画布的矢量快照，右边是规范化 SMILES
-        h('div', {
-          'data-chem-preview': 'true',
-          style: {
-            display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px',
-            height: 96, flex: '0 0 auto', background: '#ffffff',
-            borderTop: '1px solid #e5e7eb',
-          },
-        },
-          preview
-            ? h('img', {
-                src: preview, alt: '结构预览',
-                style: { height: 84, maxWidth: 200, objectFit: 'contain', flex: '0 0 auto' },
-              })
-            : h('div', {
-                style: {
-                  height: 84, width: 120, flex: '0 0 auto', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  color: '#9ca3af', fontSize: 11, border: '1px dashed #d1d5db', borderRadius: 6,
-                },
-              }, '预览'),
-          h('div', { style: { flex: 1, minWidth: 0 } },
-            h('div', { style: { fontSize: 11, color: '#6b7280', marginBottom: 2 } }, '当前结构'),
-            h('code', {
-              title: previewSmiles,
-              style: {
-                display: 'block', fontSize: 12, color: '#111827',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              },
-            }, previewSmiles || '（画板是空的）'),
-          ),
-        ),
         h('div', {
           style: {
             display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 10px',

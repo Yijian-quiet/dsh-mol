@@ -19,50 +19,33 @@
 ```
 输入框左侧 [🧪 绘制按钮]  → 点开浮层（可拖动、不占主区域）
                               ├─ Ketcher 画板（画/粘贴/载入，画布内可自行拖动）
-                              ├─ 结构预览区（前端本地出图，随画布自动刷新，不经 agent）
                               └─ 化学功能按钮：插入结构 / 校验结构 / 结构性质 / 标准化 / 逆合成分析(待接)
                                         ↓ 点击
                               结构 + 任务指令写进**当前会话**的输入框 → 你补一句就发
 ```
 
-### 预览区为什么放在前端
+### 结构图出现在**聊天里**，不在面板里
 
-Ketcher standalone 自带 indigo wasm，`ketcher.generateImage(smiles, {outputFormat:'svg'})`
-**在浏览器内就能出图** —— 所以预览**不等 agent、不产文件、也不受下面那条门控的限制**。
+早先版本在面板底部放了个"结构预览条"——**用户否掉了**：画布本来就在眼前，再画一张小图没有意义。
+真正有用的是**图跟着文字解释走**：
 
-> ⚠️ 实测：DSH 的内联图卡**硬门控于 `read_image`**（源码写死
-> `if (call?.name !== "read_image") return null`），MCP 工具返回的图片内容块**拿不到图卡**。
-> 所以"画完即见图"必须在前端解决；agent 产图那条路仍建议补 `read_image` / `present`。
+- agent 用 `dsh-mol` 画图后，**调 `read_image` 把图内联在回复里**（见 `$DSH_HOME/AGENTS.md` 的约定）
+- 实测：DSH 的内联图卡**硬门控于 `read_image`**（源码写死
+  `if (call?.name !== "read_image") return null`），MCP 工具返回的图片内容块**拿不到图卡**；
+  `present` 只产出交付卡片，也不等于内联配图
+- 所以"配图"这件事只能在 agent 侧做，插件不掺和
 
-**为什么交付走服务而不是 DOM**：面板是浮层，但即使 composer 可见，
-DSH 的输入框也是 **contenteditable 而非 textarea**；更关键的是——
-写草稿是会话状态，不依赖输入框此刻是否挂载：
+### 插入的文本保持干净
 
-```js
-const sessionId = ctx.get('sessions').list.getSnapshot().current   // DSH 内部同样这么取
-ctx.get('conversation').input.shell(sessionId).setDraft(text)      // 追加，不覆盖
-```
-
-## 架构（两块）
+功能按钮写进输入框的**只有结构和任务本身**，例如：
 
 ```
-dsh-ui/
-├── lib/index.js    宿主半边：把 Ketcher 静态构建挂在 DSH 自己的源下（/chem/ketcher）
-├── lib/client.js   客户端半边：绘制按钮（conversation.input.left）+ 浮层画板（shell.overlay）
-└── cordis.patch.yml  挂载层（ketcherDir 指向解压后的 Ketcher 构建）
+CCO 请算一下这个分子的性质（分子式、MW、logP、TPSA、HBD、HBA、环数）：CCO
 ```
 
-### 两个注册点
-
-| 注册 | slot | kind / scope | 说明 |
-|---|---|---|---|
-| 绘制按钮 | `conversation.input.left` | list / **session** | 输入框左侧；组件自动拿到 `sessionId` |
-| 浮层画板 | `shell.overlay` | list / **root** | 全屏浮层；root 作用域，靠 store 拿目标会话 |
-
-两者作用域不同，用一个极小的外部 store 通信（`useSyncExternalStore`）。
-
-> ⚠️ **store 必须换新对象**：`useSyncExternalStore` 用 `Object.is` 比较快照，
-> 原地改同一个对象不会触发重渲染（踩过：浮层永远不出现）。
+**不夹带任何内部提示**（曾经塞过 `[产物目录：…]`，用户明确要求去掉）。
+产物按会话分目录是内部整洁，由 agent 侧静默完成：
+`~/dsh-mol-out/sessions/<DSH_SESSION_ID 去前缀>/`（agent 从环境变量自己推，不打扰用户）。
 
 ### 为什么宿主半边必须存在
 
@@ -109,20 +92,20 @@ CHEM_BASE=http://127.0.0.1:3080 CHEM_TOKEN=<token> node tests/verify-ui.cjs
 4. Ketcher 画板就绪
 5. 画板**可拖动**
 6. 「插入结构」把 SMILES 写进输入框
-7. **预览区自动出图**（前端 Ketcher 导出 SVG，不经 agent）
-8. 「结构性质」写入带结构的任务指令（并带上本会话产物目录）
+7. 「插入结构」写入的文本**保持干净**（不含内部路径提示）
+8. 「结构性质」写入带结构的任务指令
 9. 关闭画板后浮层消失、**聊天仍可编辑**（核心诉求）
 
 ## 已知限制
 
 - 客户端插件**改动后要刷新页面**才生效（没有第三方插件级别的 HMR）
 - 「逆合成分析」按钮已占位，需平台侧能力接入后才可用
-- 浮层尺寸固定（580×540，可拖动）；还没有缩放把手
+- 浮层尺寸固定（580×560，可拖动）；还没有缩放把手
 - 面板内暂不显示分子性质——目前靠功能按钮把任务交给 agent 去算
 
 ## 路线
 
-- **性质预览**：面板内直接显示分子式/MW/logP（复用同仓 `chemcore` 的 10 个工具）
+- **性质指标**：面板内直接给出分子式/MW/logP 等**文本指标**（复用同仓 `chemcore`）——是文字，不是再画一张图
 - **非法结构标红**：画板里画错时当场用人话提示
 - **逆合成分析**：接平台侧能力后启用按钮
 

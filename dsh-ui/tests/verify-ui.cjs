@@ -1,8 +1,9 @@
 /**
- * chem-ui 验收（Playwright，无头）—— 2026-09-25 改版后
+ * chem-ui 验收（Playwright，无头）—— 2026-09-25 反馈定稿
  *
- * 核心诉求（Mr.自由基 的反馈）：**聊天保持可用**，绘制按钮在输入框旁边，
- * 画板是可拖动的浮层，用化学功能按钮布置任务。
+ * 核心诉求：聊天保持可用；绘制按钮在输入框旁；画板是可拖动浮层；
+ * 用化学功能按钮布置任务；**插入的文本保持干净**（不夹带内部路径提示）。
+ * 结构图不走面板预览 —— 由 agent 在回复里内联画出（见 $DSH_HOME/AGENTS.md）。
  */
 const fs = require('node:fs')
 const path = require('node:path')
@@ -37,6 +38,17 @@ async function draftOf(page) {
 
   await page.goto(TOKEN ? `${BASE}/?token=${TOKEN}` : BASE, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForTimeout(8000)
+
+  // 全新 browser context 可能弹首次配置向导，会拦截所有点击 → 先关掉
+  for (const name of [/Configure later/i, /稍后配置/, /以后再说/, /Skip/i]) {
+    const btn = page.getByRole('button', { name }).first()
+    if (await btn.count().catch(() => 0)) {
+      await btn.click({ timeout: 5000 }).catch(() => {})
+      await page.waitForTimeout(1200)
+    }
+  }
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForTimeout(600)
   await page.screenshot({ path: path.join(SHOTS, 'n1-chat.png') })
 
   // 实测：DSH 的 composer 是 contenteditable，不是 textarea
@@ -72,24 +84,6 @@ async function draftOf(page) {
   }
   check('Ketcher 画板就绪', !!frame)
 
-  // 结构预览：前端本地出图，随画布自动刷新
-  if (frame) {
-    await frame.evaluate(async () => { await window.ketcher.setMolecule('CCO') })
-    let previewOk = false, previewSrc = ''
-    for (let i = 0; i < 20 && !previewOk; i++) {
-      await page.waitForTimeout(1000)
-      const r = await page.evaluate(() => {
-        const img = document.querySelector('[data-chem-preview] img')
-        const code = document.querySelector('[data-chem-preview] code')
-        return { src: img?.getAttribute('src') || '', text: code?.textContent || '' }
-      })
-      previewOk = r.src.startsWith('blob:') && r.text.includes('CCO')
-      previewSrc = r.src
-    }
-    check('预览区自动出图（前端 Ketcher 导出，不经 agent）', previewOk, previewSrc.slice(0, 30))
-    await page.screenshot({ path: path.join(SHOTS, 'n4-preview.png') })
-  }
-
   if (await panel.count()) {
     const before = await panel.boundingBox()
     if (before) {
@@ -112,6 +106,8 @@ async function draftOf(page) {
     await page.waitForTimeout(1200)
     const d1 = await draftOf(page)
     check('「插入结构」把 SMILES 写进输入框', d1.includes(MOL), JSON.stringify(d1.slice(0, 60)))
+    check('插入文本里不含内部路径提示（用户明确要求）',
+      !/dsh-mol-out|产物目录|\[.*\]/.test(d1), JSON.stringify(d1.slice(0, 80)))
 
     await page.getByRole('button', { name: '结构性质' }).click()
     await page.waitForTimeout(1200)
