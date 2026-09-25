@@ -72,6 +72,24 @@ async function draftOf(page) {
   }
   check('Ketcher 画板就绪', !!frame)
 
+  // 结构预览：前端本地出图，随画布自动刷新
+  if (frame) {
+    await frame.evaluate(async () => { await window.ketcher.setMolecule('CCO') })
+    let previewOk = false, previewSrc = ''
+    for (let i = 0; i < 20 && !previewOk; i++) {
+      await page.waitForTimeout(1000)
+      const r = await page.evaluate(() => {
+        const img = document.querySelector('[data-chem-preview] img')
+        const code = document.querySelector('[data-chem-preview] code')
+        return { src: img?.getAttribute('src') || '', text: code?.textContent || '' }
+      })
+      previewOk = r.src.startsWith('blob:') && r.text.includes('CCO')
+      previewSrc = r.src
+    }
+    check('预览区自动出图（前端 Ketcher 导出，不经 agent）', previewOk, previewSrc.slice(0, 30))
+    await page.screenshot({ path: path.join(SHOTS, 'n4-preview.png') })
+  }
+
   if (await panel.count()) {
     const before = await panel.boundingBox()
     if (before) {

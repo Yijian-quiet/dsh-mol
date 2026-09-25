@@ -19,10 +19,20 @@
 ```
 输入框左侧 [🧪 绘制按钮]  → 点开浮层（可拖动、不占主区域）
                               ├─ Ketcher 画板（画/粘贴/载入，画布内可自行拖动）
+                              ├─ 结构预览区（前端本地出图，随画布自动刷新，不经 agent）
                               └─ 化学功能按钮：插入结构 / 校验结构 / 结构性质 / 标准化 / 逆合成分析(待接)
                                         ↓ 点击
                               结构 + 任务指令写进**当前会话**的输入框 → 你补一句就发
 ```
+
+### 预览区为什么放在前端
+
+Ketcher standalone 自带 indigo wasm，`ketcher.generateImage(smiles, {outputFormat:'svg'})`
+**在浏览器内就能出图** —— 所以预览**不等 agent、不产文件、也不受下面那条门控的限制**。
+
+> ⚠️ 实测：DSH 的内联图卡**硬门控于 `read_image`**（源码写死
+> `if (call?.name !== "read_image") return null`），MCP 工具返回的图片内容块**拿不到图卡**。
+> 所以"画完即见图"必须在前端解决；agent 产图那条路仍建议补 `read_image` / `present`。
 
 **为什么交付走服务而不是 DOM**：面板是浮层，但即使 composer 可见，
 DSH 的输入框也是 **contenteditable 而非 textarea**；更关键的是——
@@ -91,7 +101,7 @@ Ketcher 本身就是浅色画布，视觉上也协调。
 CHEM_BASE=http://127.0.0.1:3080 CHEM_TOKEN=<token> node tests/verify-ui.cjs
 ```
 
-需要 Playwright（`npx playwright` 会带 chromium）。断言 11 项 + 分步截图：
+需要 Playwright（`npx playwright` 会带 chromium）。断言 12 项 + 分步截图：
 
 1. 聊天输入框存在且可编辑（**聊天功能保留**）
 2. 输入框旁出现「绘制分子」按钮
@@ -99,8 +109,9 @@ CHEM_BASE=http://127.0.0.1:3080 CHEM_TOKEN=<token> node tests/verify-ui.cjs
 4. Ketcher 画板就绪
 5. 画板**可拖动**
 6. 「插入结构」把 SMILES 写进输入框
-7. 「结构性质」写入带结构的任务指令
-8. 关闭画板后浮层消失、**聊天仍可编辑**（核心诉求）
+7. **预览区自动出图**（前端 Ketcher 导出 SVG，不经 agent）
+8. 「结构性质」写入带结构的任务指令（并带上本会话产物目录）
+9. 关闭画板后浮层消失、**聊天仍可编辑**（核心诉求）
 
 ## 已知限制
 
