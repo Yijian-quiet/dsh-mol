@@ -15,7 +15,9 @@
     "retro",
     "scripts",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "assets",
+    "screenshots.json"
   ],
   "keywords": [
     "dsh-plugin",
