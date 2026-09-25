@@ -40,6 +40,27 @@ except ModuleNotFoundError as _exc:  # pragma: no cover - 依赖版本不符时�
 
 import chemcore as cc  # noqa: E402
 
+def _with_image(result: dict[str, Any]):
+    """把产物图**作为图片内容块**一起返回，让客户端直接渲染（DSH 有 image-card），
+    同时保留原有的路径元数据 —— 模型能读路径，人能看到图，两边都不缺。
+
+    SVG 不在此列：MCP 图片内容块只认 png/jpeg/webp/gif。
+    """
+    from mcp.server.fastmcp import Image
+
+    path = result.get("path")
+    if path and str(path).lower().endswith(".png") and os.path.exists(path):
+        # 明确告诉模型下一步该做什么：DSH 的内联图卡**只对 read_image 生效**
+        # （源码里 `if (call?.name !== "read_image") return null`），
+        # 只返回路径的话，用户看到的是一行文字而不是图。
+        result = {
+            **result,
+            "next_step": "请调用 read_image 把这张图内联展示给用户（或 present 作为交付物），不要只给路径",
+        }
+        return [Image(path=path), result]
+    return result
+
+
 mcp = FastMCP(
     "dsh-mol",
     log_level="WARNING",          # stdio 下 stdout 是协议通道，日志越安静越好
@@ -92,7 +113,7 @@ def chem_draw_molecule(
     highlight_smarts: str = "",
     legend: str = "",
     out: str = "",
-) -> dict[str, Any]:
+):
     """把分子画成结构图，返回图片**文件路径**（png 或 svg）。
 
     参数：
@@ -103,11 +124,11 @@ def chem_draw_molecule(
     画完若要让用户看到图，**请再用 `present` 工具把这个路径声明为交付物**
     （在 dsh web 等挂载了 standard 预设的环境里可用；headless 一次性任务没有该工具）。
     """
-    return cc.draw(
+    return _with_image(cc.draw(
         smiles, out=out or None, fmt=fmt, width=width, height=height,
         atom_indices=atom_indices, highlight_smarts=highlight_smarts or None,
         legend=legend or None,
-    )
+    ))
 
 
 @mcp.tool()
@@ -116,13 +137,13 @@ def chem_draw_grid(
     mols_per_row: int = 4,
     filename: str = "grid.png",
     out: str = "",
-) -> dict[str, Any]:
+):
     """把多个分子拼成一张网格图，返回图片路径。
 
     无法解析的条目会被跳过，但会在 skipped 里**逐条给出原因**——不会静默丢数据。
     画完若要让用户看到图，请再用 `present` 工具把这个路径声明为交付物。"""
-    return cc.draw_grid(smiles_list, out=out or None, mols_per_row=mols_per_row,
-                        filename=filename)
+    return _with_image(cc.draw_grid(smiles_list, out=out or None, mols_per_row=mols_per_row,
+                                    filename=filename))
 
 
 @mcp.tool()

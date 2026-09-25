@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -98,8 +99,19 @@ def _annotate_legend(path: Path, text: str, *, size: int = 16) -> tuple[str | No
 
 
 def out_dir(base: str | os.PathLike[str] | None = None) -> Path:
-    """解析输出目录并确保存在。"""
-    p = Path(base or os.environ.get("MOL_OUT", "dsh-mol-out"))
+    """解析输出目录并确保存在。
+
+    **未显式指定 ``base`` 时按日期再分一层**（``<MOL_OUT>/2026-09-25/``）：
+    否则每分析一个分子就往同一个目录丢一个文件，很快成垃圾场
+    （实测：一个下午就平铺了 4 个产物）。
+
+    显式给了 ``base`` 就完全听调用方的 —— 上层（agent / 插件）可以用它做
+    **按会话**分目录，那是比日期更细的组织粒度。
+    """
+    if base:
+        p = Path(base)
+    else:
+        p = Path(os.environ.get("MOL_OUT", "dsh-mol-out")) / date.today().isoformat()
     p.mkdir(parents=True, exist_ok=True)
     return p
 

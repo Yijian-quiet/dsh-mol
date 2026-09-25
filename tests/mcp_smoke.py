@@ -78,9 +78,15 @@ async def main() -> int:
             if r.get("level") != "error" or "环闭合" not in msg:
                 failures.append(f"错误路径没给人话原因：{r}")
 
-            # 3) 画图：应返回可用的文件路径
-            r = _payload(await session.call_tool("chem_draw_molecule",
-                                                 {"smiles": "CCO", "atom_indices": True}))
+            # 3) 画图：既要**图片内容块**（客户端能直接渲染成图卡），也要文件路径
+            res = await session.call_tool("chem_draw_molecule",
+                                          {"smiles": "CCO", "atom_indices": True})
+            kinds = [getattr(i, "type", None) for i in (res.content or [])]
+            has_image = "image" in kinds
+            print(f"  draw(CCO) 内容块类型 = {kinds}")
+            if not has_image:
+                failures.append(f"画图没有返回图片内容块（客户端无法自动渲染）：{kinds}")
+            r = _payload(res)
             path = r.get("path", "")
             ok = bool(path) and os.path.exists(path) and os.path.getsize(path) > 1000
             print(f"  draw(CCO) -> {path} ({r.get('bytes')} bytes)")

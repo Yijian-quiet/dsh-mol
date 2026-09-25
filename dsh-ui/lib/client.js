@@ -72,6 +72,17 @@ window.__ModuleLoader__.load({
     /* 化学功能按钮：读结构 → 把"带结构的指令"写进输入框（= 布置任务）        */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * 本次会话的产物目录。
+     *
+     * 为什么由插件给：MCP 服务是**按插件常驻**的，它不知道调用来自哪个会话
+     * （DSH 的 MCP 客户端不转发会话身份），所以只有插件知道 sessionId。
+     * 不这么做，所有会话的产物会平铺在同一个目录里 —— 实测一个下午就乱了。
+     */
+    const outHint = (sessionId) => sessionId
+      ? `（图片等产物请写到 ~/dsh-mol-out/sessions/${String(sessionId).replace(/^session-/, '').slice(0, 8)}/）`
+      : ''
+
     const FUNCTIONS = [
       { id: 'smiles', label: '插入结构', hint: '只把 SMILES 放进输入框' },
       { id: 'check', label: '校验结构', hint: '让 agent 校验合法性并说明问题',
@@ -117,7 +128,8 @@ window.__ModuleLoader__.load({
         const smiles = await readSmiles()
         if (smiles === null) { setStatus('画板未就绪'); return }
         if (!smiles) { setStatus('画板是空的'); return }
-        const text = fn.id === 'smiles' ? smiles : fn.prompt(smiles)
+        const base = fn.id === 'smiles' ? smiles : fn.prompt(smiles)
+        const text = `${base}${outHint(s.sessionId)}`
         const result = appendToDraft(s.sessionId, text)
         setStatus(result === 'ok' ? `「${fn.label}」已写入输入框` : result)
       }
