@@ -1,5 +1,7 @@
 # dsh-chem-ui · 化学工作台（DSH Web UI 插件）
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 给 DeepSeek Harness 的**化学工作台**：聊天照常，输入框旁多一个「工作台」按钮，
 点开一个**可拖动、可最大化的浮层**，里面三个页签：
 

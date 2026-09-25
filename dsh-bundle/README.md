@@ -1,5 +1,7 @@
 # dsh-mol
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 把 **[dsh-mol](../README.md)**（本地优先的化学工作台）接入 **DeepSeek Harness**。
 
 装上之后，模型侧会多出这 **12** 个工具：

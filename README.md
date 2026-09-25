@@ -10,6 +10,7 @@
 纯 RDKit，**零网络、零 API key、零外部服务**。也可作为 stdio MCP 服务被 Claude Code / Codex 等直接调用。
 
 [![ci](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml/badge.svg)](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml)
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
