@@ -216,6 +216,51 @@ def _():
         true("单向" in str(exc) or "反推" in str(exc), "应说明不可反推")
 
 
+@case("convert: RU-SMILES 带 * 时 InChI 失败要报错，不能静默返回空串")
+def _():
+    # 领域相关：聚合物 RU-SMILES 必带 * 虚原子，而 InChI 不支持 dummy atom。
+    # RDKit 此时**返回空串而不抛异常** —— 静默空值是最危险的返回。
+    ru = "*OCCOC(=O)c1ccc(C(=O)O*)cc1"
+    for target in ("inchi", "inchikey"):
+        try:
+            out = cc.convert(ru, to=target)["value"]
+            raise AssertionError(f"to={target} 应当抛 ValueError，实际返回 {out!r}")
+        except ValueError as exc:
+            msg = str(exc)
+            true("InChI" in msg, f"错误信息应提到 InChI：{msg}")
+            true("虚原子" in msg or "RU-SMILES" in msg,
+                 f"应点明领域原因（* 虚原子 / RU-SMILES）：{msg}")
+
+
+@case("convert: 不带 * 的分子 InChI 往返正常（对照组）")
+def _():
+    mono = "OC(=O)c1ccc(C(=O)O)cc1"
+    inchi = cc.convert(mono, to="inchi")["value"]
+    true(inchi.startswith("InChI="), "应生成合法 InChI")
+    eq(cc.convert(inchi, to="smiles")["value"], cc.check(mono).canonical, "往返一致")
+
+
+@case("convert: RU-SMILES 的 InChI 报错也支持英文")
+def _():
+    ru = "*CC(*)C"
+    try:
+        cc.convert(ru, to="inchi", src="smiles")
+        raise AssertionError("应当抛 ValueError")
+    except ValueError:
+        pass
+    # 走 i18n 全局语言
+    original = cc.current_lang()
+    try:
+        cc.set_lang("en")
+        try:
+            cc.convert(ru, to="inchi")
+            raise AssertionError("应当抛 ValueError")
+        except ValueError as exc:
+            true("Cannot generate InChI" in str(exc), f"英文文案缺失：{exc}")
+    finally:
+        cc.set_lang(original)
+
+
 # ---------------------------------------------------------------- draw
 @case("draw: 生成 PNG / SVG，落盘且非空")
 def _():

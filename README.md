@@ -267,6 +267,9 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 协议级冒烟（真起服�
 - 这里**没有**实验值。`logP`、`TPSA` 等是计算/估算值，不替代实验测量。
 - 这里**没有**图像识别、名称→结构（OPSIN 之类）。
 - SMARTS 匹配是结构匹配，**不等于**化学反应性判断。
+- **InChI 不支持 `*` 虚原子**：聚合物 RU-SMILES（如 `*OCCOC(=O)c1ccc(C(=O)O*)cc1`）**转不了** InChI / InChIKey。
+  我们**不会静默返回空串**（RDKit 会），而是明确报错并建议用 canonical SMILES 做唯一标识 —— 因为这个领域最常见的输入正好就是带 `*` 的。
+- 这是 `v0.0.1`：API 可能变；欢迎提 issue。
 
 ## 许可
 

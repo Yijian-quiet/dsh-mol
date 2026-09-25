@@ -85,9 +85,16 @@ def convert(value: str, *, to: str, src: str | None = None) -> dict[str, Any]:
     if to == "smiles":
         out = Chem.MolToSmiles(mol)
     elif to == "inchi":
+        # RDKit 生成 InChI 失败时**返回空串而不抛异常**（例如含 * 虚原子的
+        # 聚合物 RU-SMILES —— 领域里最常见的输入）。静默返回 '' 是错答案，
+        # 必须显式报错，否则调用方会把它当成"成功的空值"。
         out = Chem.MolToInchi(mol)
+        if not out:
+            raise ValueError(t("err_inchi_unsupported"))
     elif to == "inchikey":
         out = Chem.MolToInchiKey(mol)
+        if not out:
+            raise ValueError(t("err_inchikey_unsupported"))
     elif to == "mol":
         out = Chem.MolToMolBlock(mol)
     elif to == "sdf":

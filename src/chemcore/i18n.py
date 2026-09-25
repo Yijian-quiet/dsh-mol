@@ -111,6 +111,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_inchi_parse": "InChI 无法解析（检查前缀 InChI= 与校验位）",
         "err_molblock_parse": "MOL/SDF 结构块无法解析（检查是否缺少标题行或原子块被截断）",
         "err_inchikey_readonly": "InChIKey 是单向摘要，无法反推结构",
+        "err_inchi_unsupported": (
+            "无法生成 InChI：分子含 InChI 不支持的元素 —— 最常见的是聚合物 RU-SMILES 里的"
+            " * 虚原子（InChI 规范不支持 dummy atom）。若要唯一标识，请改用 canonical SMILES。"
+        ),
+        "err_inchikey_unsupported": (
+            "无法生成 InChIKey：分子含 InChI 不支持的元素（最常见是 RU-SMILES 里的 * 虚原子）。"
+            "请改用 canonical SMILES 做唯一标识。"
+        ),
         "err_bad_src_format": "不支持的源格式：{0}",
         "err_bad_dst_format": "目标格式须是 {0} 之一，收到 {1}",
         "err_bad_image_format": "只支持 png / svg，收到 {0}",
@@ -172,6 +180,15 @@ MESSAGES: dict[str, dict[str, str]] = {
             "Cannot parse the MOL/SDF block (check for a missing title line or a truncated atom block)"
         ),
         "err_inchikey_readonly": "InChIKey is a one-way digest and cannot be converted back to a structure",
+        "err_inchi_unsupported": (
+            "Cannot generate InChI: the molecule contains an element InChI does not support — most"
+            " commonly the `*` dummy atom in polymer RU-SMILES (InChI has no dummy-atom support)."
+            " Use canonical SMILES as the identifier instead."
+        ),
+        "err_inchikey_unsupported": (
+            "Cannot generate InChIKey: the molecule contains an element InChI does not support"
+            " (most commonly the `*` dummy atom in RU-SMILES). Use canonical SMILES instead."
+        ),
         "err_bad_src_format": "Unsupported source format: {0}",
         "err_bad_dst_format": "Target format must be one of {0}, got {1}",
         "err_bad_image_format": "Only png / svg are supported, got {0}",

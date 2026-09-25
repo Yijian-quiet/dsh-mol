@@ -257,6 +257,8 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real client, 
 - There are **no experimental values** here. `logP`, `TPSA` etc. are computed/estimated.
 - No image recognition, no name → structure (OPSIN).
 - SMARTS matching is structural matching, **not** a reactivity judgement.
+- **InChI does not support the `*` dummy atom**: polymer RU-SMILES (e.g. `*OCCOC(=O)c1ccc(C(=O)O*)cc1`) **cannot** be converted to InChI / InChIKey.
+  We **refuse to return an empty string silently** (RDKit does); we raise a clear error and point you at canonical SMILES instead — precisely because dummy-atom input is the norm in this field.
 
 ## Repository layout
 
