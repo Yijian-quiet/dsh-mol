@@ -26,6 +26,12 @@
     "ketcher",
     "molecule-editor"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yijian-quiet/dsh-mol.git",
+    "directory": "dsh-ui"
+  },
+  "homepage": "https://github.com/Yijian-quiet/dsh-mol#readme",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
