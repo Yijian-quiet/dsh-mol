@@ -5,14 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dsh-mol"
 version = "0.0.1"
-description = "本地优先的化学基础工具台：SMILES 校验/画分子/性质/格式互转/标准化/批量清洗，纯 RDKit，零网络"
+description = "Local-first chemistry toolkit for AI agents (RDKit, no network): SMILES validation, drawing, properties, drug-likeness, conversion, standardisation, batch clean-up | 本地优先的化学工具台"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = "MIT"
 keywords = ["chemistry", "rdkit", "smiles", "cheminformatics", "mcp", "deepseek-harness", "ai4s"]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
   "Topic :: Scientific/Engineering :: Chemistry",
 ]
 dependencies = ["rdkit>=2023.9"]
@@ -27,6 +26,9 @@ dsh-mol-mcp = "dsh_mol_mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/Yijian-quiet/dsh-mol"
+Source = "https://github.com/Yijian-quiet/dsh-mol"
+Issues = "https://github.com/Yijian-quiet/dsh-mol/issues"
+Changelog = "https://github.com/Yijian-quiet/dsh-mol/commits/main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

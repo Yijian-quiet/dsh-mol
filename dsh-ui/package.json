@@ -1,7 +1,6 @@
 {
   "name": "dsh-chem-ui",
   "version": "0.0.1",
-  "private": true,
   "description": "化学工作台（DSH Web UI 插件）：画板 + 本地 RDKit 分析 + 逆合成框架",
   "type": "module",
   "license": "MIT",
