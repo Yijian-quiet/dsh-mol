@@ -52,6 +52,14 @@ dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-ui'   # ← �
 # 3) 打开 DSH Web，点输入框左边的「工作台」
 ```
 
+
+> ⏳ **PyPI / npm 尚未发布**（2026-09-26 核实：`dsh-mol`、`dsh_mol`、`dshmol` 在 PyPI 均 404，
+> npm 上 `dsh-mol`、`dsh-chem-ui` 也未发布），所以上面的命令都是 **git 直装** —— 现在就能用。
+> 包名都还空着，发布之后 `pip install 'dsh-mol[mcp]'` 与 `dsh plugin add dsh-mol` 才可用。
+>
+> ✅ 本插件已被 [dsh 插件市场](https://awesome-dsh-plugin.com) 收录（`dsh-mol#dsh-ui` 与
+> `dsh-mol#dsh-bundle` 两条，分类 `tools`），也可以直接在市场里装。
+
 工作台需要本地有一个能 `import rdkit` 的 `python3`；画板用的是 [Ketcher](https://github.com/epam/ketcher) 静态构建，**在浏览器本地渲染，不经过任何后端**。
 
 <details>

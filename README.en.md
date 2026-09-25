@@ -52,6 +52,15 @@ dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-ui'   # ← t
 # 3) Open DSH Web and click "workbench" to the left of the input box
 ```
 
+
+> ⏳ **Not yet on PyPI / npm** (checked 2026-09-26: `dsh-mol`, `dsh_mol` and `dshmol` all 404 on
+> PyPI; `dsh-mol` and `dsh-chem-ui` are unpublished on npm), so the commands above install
+> **straight from git** — that is the route that works today. The package names are still free;
+> `pip install 'dsh-mol[mcp]'` and `dsh plugin add dsh-mol` start working once published.
+>
+> ✅ Listed in the [DSH plugin market](https://awesome-dsh-plugin.com) (entries
+> `dsh-mol#dsh-ui` and `dsh-mol#dsh-bundle`, category `tools`) — you can also install it there.
+
 The workbench needs a local `python3` that can `import rdkit`; the canvas is a [Ketcher](https://github.com/epam/ketcher) static build that **renders locally in the browser and goes through no backend**.
 
 <details>
