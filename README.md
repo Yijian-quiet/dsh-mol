@@ -23,7 +23,7 @@
 | | |
 |---|---|
 | 版本 | `0.0.1`（早期，API 可能变） |
-| 测试 | 34 个核心用例 + 11 项自测 + MCP 协议级冒烟，**全绿** |
+| 测试 | 43 个核心用例 + 11 项自测 + MCP 协议级冒烟，**全绿** |
 | 发布 | ⏳ 尚未发布到 PyPI / GitHub |
 | 依赖 | `rdkit`（核心）；`mcp`（仅 MCP 适配层需要） |
 | 许可 | MIT |
@@ -242,8 +242,14 @@ python3 examples/monomer_cleanup.py
 ## 测试
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 26 个核心用例（零依赖，不需要 pytest）
+PYTHONPATH=src python3 tests/run_tests.py    # 43 个核心用例（零依赖，不需要 pytest）
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 协议级冒烟（真起服务、真调工具）
+```
+
+**验收脚本**（10 个工具逐个跑一遍，给结论 + 耗时 + 产物路径）：
+
+```bash
+python3 examples/acceptance.py               # 产物默认落在 ~/dsh-mol-out/
 ```
 
 ## 设计原则

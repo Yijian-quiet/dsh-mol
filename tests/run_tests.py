@@ -477,9 +477,30 @@ def _():
 
 
 # ---------------------------------------------------------------- 汇总
+def check_readme_count():
+    """README 里写的用例数必须与实际一致 —— 文档数字最容易悄悄过期。"""
+    import pathlib, re
+    total = len(PASS) + len(FAIL)
+    problems = []
+    for f, pat in (("README.md", r"(\d+)\s*个核心用例"),
+                   ("README.en.md", r"(\d+)\s*core cases")):
+        p = pathlib.Path(__file__).resolve().parent.parent / f
+        if not p.exists():
+            continue
+        m = re.search(pat, p.read_text(encoding="utf-8"))
+        if not m:
+            problems.append(f"{f}: 找不到用例数声明")
+        elif int(m.group(1)) != total:
+            problems.append(f"{f}: 写的是 {m.group(1)}，实际 {total}")
+    return problems
+
+
 if __name__ == "__main__":
     total = len(PASS) + len(FAIL)
     print(f"\n通过 {len(PASS)}/{total}")
+    for prob in check_readme_count():
+        FAIL.append(("README 用例数与实际不一致", prob))
+        print(f"  ✗ {prob}")
     for name, why in FAIL:
         print(f"  ✗ {name}\n      {why}")
     if FAIL:

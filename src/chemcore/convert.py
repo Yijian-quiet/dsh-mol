@@ -11,7 +11,7 @@ from typing import Any
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
-from ._rdkit import mol_from_smiles
+from ._rdkit import capture_log, mol_from_smiles
 from .i18n import t
 from .validate import check
 
@@ -88,11 +88,15 @@ def convert(value: str, *, to: str, src: str | None = None) -> dict[str, Any]:
         # RDKit 生成 InChI 失败时**返回空串而不抛异常**（例如含 * 虚原子的
         # 聚合物 RU-SMILES —— 领域里最常见的输入）。静默返回 '' 是错答案，
         # 必须显式报错，否则调用方会把它当成"成功的空值"。
-        out = Chem.MolToInchi(mol)
+        # 同时捕获日志：InChI 失败会往 stderr 打 "Unsupported ... element '*'"
+        # 这类噪声，不该出现在工具输出里。
+        with capture_log():
+            out = Chem.MolToInchi(mol)
         if not out:
             raise ValueError(t("err_inchi_unsupported"))
     elif to == "inchikey":
-        out = Chem.MolToInchiKey(mol)
+        with capture_log():
+            out = Chem.MolToInchiKey(mol)
         if not out:
             raise ValueError(t("err_inchikey_unsupported"))
     elif to == "mol":
