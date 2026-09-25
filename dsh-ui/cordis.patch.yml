@@ -1,0 +1,11 @@
+# dsh-chem-ui 的组合包层：把化学工作台插件挂进 profile。
+#
+# ketcherDir 指向解压后的 Ketcher 构建目录（ketcher-standalone-3.18.0.zip）。
+# 宿主半边会把它挂在 DSH 自己的源下（/chem/ketcher），客户端 iframe 直接加载 ——
+# 必须同源，否则读不到 iframe.contentWindow.ketcher。
+
+- insert:
+    - id: chem-ui
+      name: 'dsh-chem-ui'
+      config:
+        ketcherDir: /path/to/ketcher
