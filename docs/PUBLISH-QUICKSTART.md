@@ -26,6 +26,35 @@
    - Scope: **Entire account**（第一次只能这样，因为项目还不存在）
    - 复制那串 `pypi-AgEIcHlwaS5vcmc...`（**只显示一次**）
 
+### ①.5 2FA 验证器怎么弄（只有 PyPI 需要）
+
+**2FA 是什么**：除了密码，再要一个**每 30 秒变一次的 6 位数字**。
+它由"验证器"根据一串共享密钥在**本地**算出来，不联网、不发短信 —— 所以不受信号影响。
+
+**先明确一件事：上传**（`twine upload`）**用 API token 就够了，不需要输这 6 位码。**
+2FA 是给**网页登录**用的。别被"发布要 2FA"吓到。
+
+**路线 A：手机 App（推荐，最省心）**
+
+1. 应用商店搜 **Microsoft Authenticator**（微软出品；华为/小米/OPPO 应用商店、App Store 都有，中文界面）
+   —— 也可以选 Google Authenticator / Authy，任一个都行
+2. PyPI → https://pypi.org/manage/account/ → *Two-factor authentication* → **Add 2FA device**
+3. 选 **Authenticator app** → 屏幕给出**二维码**和一串**文字密钥（setup key，形如 `JBSWY3DPEHPK3PXP`）**
+4. App 里「添加账户 → 扫描二维码」（扫不动就手动输入那串文字密钥）
+5. App 会显示 6 位码 → 填回 PyPI 页面 → 确认
+6. ⚠️ **立刻保存 PyPI 给的恢复码（recovery codes）** —— 存到密码管理器或打印出来。
+   **手机丢了又没有恢复码，PyPI 账号基本救不回来**（有官方申诉流程，但很慢）
+
+**路线 B：不碰手机，用桌面**
+
+- **Windows**：装 [KeePassXC](https://keepassxc.org/)（有 Windows 版，自带 TOTP）→
+  新建一个库 → 新建条目 → 在条目里「设置 TOTP」→ 粘贴上面那串 setup key → 就能显示 6 位码。
+  好处：顺便把密码也管起来
+- **Edge/Chrome 扩展**：加载项商店搜 "Authenticator" 类扩展，添加后扫二维码。
+  ⚠️ 风险：扩展数据跟着浏览器配置走，换机器/清配置就丢 —— **恢复码必须另存一份**
+
+**两条路都适用的一条铁律**：恢复码不要只存在存验证器的那个设备里。
+
 ## ② npm：注册 + 令牌（约 5 分钟）
 
 1. https://www.npmjs.com/signup → 注册 → 验证邮箱
