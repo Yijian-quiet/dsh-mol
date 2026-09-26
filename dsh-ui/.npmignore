@@ -1,0 +1,10 @@
+# Python 编译缓存：不进包（绑死解释器版本，且是运行时产物）
+__pycache__/
+*.py[cod]
+
+# Ketcher 构建 116 MB，由 scripts/fetch-ketcher.mjs 现下，不进包
+ketcher/
+
+# 开发用，不进包
+tests/
+.DS_Store
