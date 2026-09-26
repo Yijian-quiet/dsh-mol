@@ -43,8 +43,9 @@
 ## 快速开始
 
 ```bash
-# 1) 装核心 + MCP 适配层（无需 PyPI 账号，直接从 git 装）
-pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
+# 1) 装核心 + MCP 适配层（已上 PyPI）
+pip install 'dsh-mol[mcp]'
+#    装不上时退回 git：pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
 
 # 2) 把插件装进你的 DSH profile（无需 npm 账号，pnpm 支持 git 子目录）
 dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-bundle'
@@ -54,9 +55,8 @@ dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-ui'   # ← �
 ```
 
 
-> ⏳ **PyPI / npm 尚未发布**（2026-09-26 核实：`dsh-mol`、`dsh_mol`、`dshmol` 在 PyPI 均 404，
-> npm 上 `dsh-mol`、`dsh-chem-ui` 也未发布），所以上面的命令都是 **git 直装** —— 现在就能用。
-> 包名都还空着，发布之后 `pip install 'dsh-mol[mcp]'` 与 `dsh plugin add dsh-mol` 才可用。
+> ✅ **已发布到 PyPI**：`pip install 'dsh-mol[mcp]'`（2026-09-26 上线，装完 `dsh-mol-mcp --selftest` 可自检）。
+> ⏳ **npm 尚未发布**，所以插件本身仍用 `dsh plugin add github:…` 安装 —— 不影响任何功能。
 >
 > ✅ 本插件已被 [dsh 插件市场](https://awesome-dsh-plugin.com) 收录（`dsh-mol#dsh-ui` 与
 > `dsh-mol#dsh-bundle` 两条，分类 `tools`），也可以直接在市场里装。

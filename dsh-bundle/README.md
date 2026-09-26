@@ -31,16 +31,22 @@ mcp__chem__chem_batch_clean         批量清洗，逐条报告失败
 
 ## 前置条件
 
-需要有 dsh-mol 的 MCP 服务可执行。**当前可用的是 A 和 B**：
+需要有 dsh-mol 的 MCP 服务可执行。**三条路都通，按方便程度选**：
 
-**A. 从 Git 安装（推荐，现在就能用）**
+**A. 从 PyPI 安装（推荐）**
 
 ```bash
-pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
+pip install 'dsh-mol[mcp]'
 # 之后 PATH 上会有 dsh-mol-mcp；自检：dsh-mol-mcp --selftest
 ```
 
-**B. 从源码运行（不装包）**
+**B. 从 Git 安装**（PyPI 不方便时用，比如内网/离线环境）
+
+```bash
+pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
+```
+
+**C. 从源码运行（不装包）**
 
 ```bash
 git clone https://github.com/Yijian-quiet/dsh-mol.git
@@ -49,15 +55,8 @@ export MOL_MCP_ARGS='-m dsh_mol_mcp.server'
 export PYTHONPATH=/path/to/dsh-mol/src
 ```
 
-**C. PyPI —— ⏳ 尚未发布，现在走不通**
-
-```bash
-pip install 'dsh-mol[mcp]'      # 404：包还没上 PyPI
-```
-
-> ⚠️ **别把这条当成"正式安装"**：截至 2026-09-26，`dsh-mol` / `dsh_mol` / `dshmol`
-> 在 PyPI 上都是 404（`https://pypi.org/pypi/dsh-mol/json`），npm 上的 `dsh-mol`、
-> `dsh-chem-ui` 同样未发布。C 这条路**等发布之后**才会通 —— 在那之前请用 A 或 B。
+> npm 上的 `dsh-mol` / `dsh-chem-ui` **尚未发布**（2026-09-26），所以插件本身仍用
+> `dsh plugin add github:…` 安装。这不影响任何功能 —— 市场条目里给的也是这条命令。
 > 发布后会更新这里（以及插件市场里那条描述）。
 
 > 为什么用环境变量而不是写死路径：`cordis.patch.yml` 里用的是 `!!js` 表达式，

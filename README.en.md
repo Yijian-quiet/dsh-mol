@@ -43,8 +43,9 @@ Pure RDKit. **No network, no API key, no external service.** Also usable as a st
 ## Quick start
 
 ```bash
-# 1) Install the core + MCP adapter (no PyPI account needed — straight from git)
-pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
+# 1) Install the core + MCP adapter (published on PyPI)
+pip install 'dsh-mol[mcp]'
+#    Fall back to git if that fails: pip install "dsh-mol[mcp] @ git+https://github.com/Yijian-quiet/dsh-mol.git"
 
 # 2) Install the plugin into your DSH profile (no npm account needed; pnpm handles git subdirectories)
 dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-bundle'
@@ -54,10 +55,8 @@ dsh plugin --profile web add 'github:Yijian-quiet/dsh-mol#path:dsh-ui'   # ← t
 ```
 
 
-> ⏳ **Not yet on PyPI / npm** (checked 2026-09-26: `dsh-mol`, `dsh_mol` and `dshmol` all 404 on
-> PyPI; `dsh-mol` and `dsh-chem-ui` are unpublished on npm), so the commands above install
-> **straight from git** — that is the route that works today. The package names are still free;
-> `pip install 'dsh-mol[mcp]'` and `dsh plugin add dsh-mol` start working once published.
+> ✅ **Published on PyPI**: `pip install 'dsh-mol[mcp]'` (live 2026-09-26; run `dsh-mol-mcp --selftest` to check).
+> ⏳ **Not yet on npm**, so the plugin itself still installs with `dsh plugin add github:…` — nothing is blocked.
 >
 > ✅ Listed in the [DSH plugin market](https://awesome-dsh-plugin.com) (entries
 > `dsh-mol#dsh-ui` and `dsh-mol#dsh-bundle`, category `tools`) — you can also install it there.
