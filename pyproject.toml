@@ -9,6 +9,8 @@ description = "Local-first chemistry toolkit for AI agents (RDKit, no network): 
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
+authors = [{ name = "Yijian-quiet" }]
+maintainers = [{ name = "Yijian-quiet" }]
 keywords = ["chemistry", "rdkit", "smiles", "cheminformatics", "mcp", "deepseek-harness", "ai4s"]
 classifiers = [
   "Programming Language :: Python :: 3",
