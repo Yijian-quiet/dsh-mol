@@ -113,41 +113,55 @@ except Exception:  # pragma: no cover - SDK 内部结构变化时不影响功能
 # --------------------------------------------------------------------------
 @mcp.tool(title="Validate SMILES", annotations=READ_ONLY)
 def chem_check_smiles(smiles: str) -> dict[str, Any]:
-    """校验并规范化一个 SMILES。
+    """Validate and canonicalise a SMILES string.
 
-    返回三级结果：ok（干净）/ warn（能解析但可疑，如电荷异常）/ error（解析失败）。
-    失败时给出**人话原因**（环未闭合、括号不匹配、价键超限…）和可定位的字符位置。
-    校验 SMILES 请一律用这个工具，不要凭眼睛判断。
-    """
+    Returns a three-level result: ok (clean), warn (parses but suspicious, e.g. an
+    odd formal charge), or error (parse failure). Failures carry a human-readable
+    reason (unclosed ring, unbalanced parentheses, valence exceeded, ...) and, when it
+    can be located, the character position. This is the validation entry point for
+    SMILES input.
+
+    校验并规范化一个 SMILES。返回三级结果：ok（干净）/ warn（能解析但可疑，如电荷异常）
+    / error（解析失败）。失败时给出人话原因（环未闭合、括号不匹配、价键超限…）和可定位的
+    字符位置。"""
     return cc.check(smiles).as_dict()
 
 
 @mcp.tool(title="Molecular properties", annotations=READ_ONLY)
 def chem_properties(smiles: str) -> dict[str, Any]:
-    """计算分子性质：分子式、分子量、精确质量、logP、TPSA、氢键供受体、
-    可旋转键、环数、手性中心等。
+    """Compute common molecular properties: formula, molecular weight, exact mass,
+    logP, TPSA, hydrogen-bond donors and acceptors, rotatable bonds, ring counts,
+    stereocentres and more. logP is a Crippen estimate, not an experimental value.
 
-    注意 logP 是 Crippen 估算值，不是实验值。"""
+    计算分子性质：分子式、分子量、精确质量、logP、TPSA、氢键供受体、可旋转键、环数、
+    手性中心等。注意 logP 是 Crippen 估算值，不是实验值。"""
     return cc.properties(smiles)
 
 
 @mcp.tool(title="Analyse molecule", annotations=READ_ONLY)
 def chem_analyze(smiles: str) -> dict[str, Any]:
-    """分子"深看一层"：基础性质 + 类药性 + 结构警报 + Murcko 骨架，一次给全。
+    """Properties, drug-likeness, structural alerts and the Murcko scaffold in one call.
 
-    适合回答"这分子像不像药""有没有毒理警戒结构""骨架是什么"。
-    返回里每一条规则都带 passed 与阈值明细，**不给"能否成药"的总评** ——
-    那不是几个阈值的与运算，交给人判断更诚实。
-    QED 是"接近已知药物性质分布"的程度（Bickerton 2012 口径），不是活性预测。"""
+    Every rule is returned with its own passed flag and threshold detail. It
+    deliberately returns no overall "drug-like or not" verdict: that is not a boolean
+    AND of thresholds and is better left to the reader. QED measures closeness to the
+    property distribution of known drugs (Bickerton 2012); it is not an activity
+    prediction.
+
+    分子"深看一层"：基础性质 + 类药性 + 结构警报 + Murcko 骨架，一次给全。每条规则都带
+    passed 与阈值明细，不给"能否成药"的总评。QED 是接近已知药物性质分布的程度
+    （Bickerton 2012 口径），不是活性预测。"""
     return cc.analyze(smiles)
 
 
 @mcp.tool(title="Drug-likeness and alerts", annotations=READ_ONLY)
 def chem_druglikeness(smiles: str, catalogs: list[str] | None = None) -> dict[str, Any]:
-    """只要类药性与结构警报（Lipinski / Veber / QED / PAINS / BRENK / 骨架）。
+    """Drug-likeness and structural alerts only (Lipinski / Veber / QED / PAINS / BRENK /
+    Murcko scaffold). `catalogs` chooses which alert catalogues to check and defaults
+    to PAINS + BRENK; NIH and ZINC are also available but noisier.
 
-    catalogs 可指定查哪些警报目录，默认 PAINS + BRENK；也可传 NIH / ZINC
-    （误报更多，需要时再开）。"""
+    只要类药性与结构警报（Lipinski / Veber / QED / PAINS / BRENK / 骨架）。catalogs 可指定
+    警报目录，默认 PAINS + BRENK；也可传 NIH / ZINC（误报更多，需要时再开）。"""
     return cc.druglikeness(smiles, catalogs=tuple(catalogs) if catalogs else cc.DEFAULT_ALERT_CATALOGS)
 
 
@@ -162,16 +176,18 @@ def chem_draw_molecule(
     legend: str = "",
     out: str = "",
 ):
-    """把分子画成结构图，返回图片**文件路径**（png 或 svg）。
+    """Render one molecule to an image file (png or svg) and return its path.
 
-    参数：
-      atom_indices: 标注原子编号（讨论具体原子时很有用）
-      highlight_smarts: 用 SMARTS 高亮子结构，如 "c1ccccc1" 高亮苯环
-      out: 输出目录，默认 MOL_OUT 或 ./dsh-mol-out
+    Parameters:
+      atom_indices: label atom indices (useful when discussing specific atoms)
+      highlight_smarts: highlight a substructure by SMARTS, e.g. "c1ccccc1" for benzene
+      out: output directory; defaults to MOL_OUT or ./dsh-mol-out
 
-    返回值里**不含图片二进制**，只有落盘路径与尺寸信息；图片本身需要由调用方
-    按自己的宿主能力展示（不同宿主的内联方式不同）。
-    """
+    The return value carries no image bytes, only the written path and size
+    information; displaying the image is up to the caller's host.
+
+    把分子画成结构图，返回图片文件路径（png 或 svg）。返回值里不含图片二进制，只有落盘路径
+    与尺寸信息；图片本身需要由调用方按自己宿主的能力展示。"""
     return _with_image(cc.draw(
         smiles, out=out or None, fmt=fmt, width=width, height=height,
         atom_indices=atom_indices, highlight_smarts=highlight_smarts or None,
@@ -186,19 +202,24 @@ def chem_draw_grid(
     filename: str = "grid.png",
     out: str = "",
 ):
-    """把多个分子拼成一张网格图，返回图片路径。
+    """Render several molecules into one grid image and return its path. Entries that cannot
+    be parsed are skipped, each with its reason recorded in `skipped` - nothing is
+    dropped silently. The return value carries no image bytes, only the written path.
 
-    无法解析的条目会被跳过，但会在 skipped 里**逐条给出原因**——不会静默丢数据。
-    返回值里不含图片二进制，只有落盘路径。"""
+    把多个分子拼成一张网格图，返回图片路径。无法解析的条目会被跳过，但会在 skipped 里逐条
+    给出原因，不会静默丢数据；返回值里不含图片二进制，只有落盘路径。"""
     return _with_image(cc.draw_grid(smiles_list, out=out or None, mols_per_row=mols_per_row,
                                     filename=filename))
 
 
 @mcp.tool(title="Convert structure format", annotations=READ_ONLY)
 def chem_convert(value: str, to: str, src: str = "") -> dict[str, Any]:
-    """结构格式互转：smiles / inchi / inchikey / mol / sdf / formula。
+    """Convert between structure formats: smiles / inchi / inchikey / mol / sdf / formula.
+    `src` is auto-detected when left empty. An InChIKey is a one-way hash and cannot be
+    converted back into a structure.
 
-    src 留空则自动嗅探。注意 InChIKey 是单向摘要，不能反推结构。"""
+    结构格式互转：smiles / inchi / inchikey / mol / sdf / formula。src 留空则自动嗅探。
+    注意 InChIKey 是单向摘要，不能反推结构。"""
     return cc.convert(value, to=to, src=src or None)
 
 
@@ -210,10 +231,13 @@ def chem_standardize(
     uncharge: bool = True,
     canonical_tautomer: bool = False,
 ) -> dict[str, Any]:
-    """结构标准化：去盐、去金属、中和电荷、规范化。
+    """Standardise a structure: strip salts, disconnect metals, neutralise charges and
+    apply RDKit normalisation. Returns a per-step change log so the caller can judge
+    whether to trust the result. canonical_tautomer is off by default because it
+    silently changes the structure (keto/enol and similar).
 
-    会逐步记录**改了什么**（changes），便于判断该不该信任结果。
-    canonical_tautomer 默认关闭，因为它会悄悄改变结构（酮式/烯醇式之类）。"""
+    结构标准化：去盐、去金属、中和电荷、规范化。会逐步记录改了什么（changes），便于判断
+    该不该信任结果。canonical_tautomer 默认关闭，因为它会悄悄改变结构（酮式/烯醇式之类）。"""
     return cc.standardize(
         smiles, strip_salts=strip_salts, desolvate=desolvate,
         uncharge=uncharge, canonical_tautomer=canonical_tautomer,
@@ -222,27 +246,38 @@ def chem_standardize(
 
 @mcp.tool(title="Deduplicate structures", annotations=READ_ONLY)
 def chem_dedupe(smiles_list: list[str], standardize_first: bool = False) -> dict[str, Any]:
-    """按规范化结构去重，保留首次出现顺序，返回重复分组与失败条目。"""
+    """Deduplicate a list by canonical structure, keeping first-seen order. Returns the
+    duplicate groups and any per-item failures.
+
+    按规范化结构去重，保留首次出现顺序，返回重复分组与失败条目。"""
     return cc.dedupe(smiles_list, standardize_first=standardize_first)
 
 
 @mcp.tool(title="Substructure match", annotations=READ_ONLY)
 def chem_substructure_match(smiles: str, smarts: str) -> dict[str, Any]:
-    """用 SMARTS 在分子里查子结构，返回匹配的原子索引列表。"""
+    """Find a SMARTS substructure inside a molecule; returns the matching atom indices.
+
+    用 SMARTS 在分子里查子结构，返回匹配的原子索引列表。"""
     return cc.substructure_match(smiles, smarts)
 
 
 @mcp.tool(title="Fingerprint similarity", annotations=READ_ONLY)
 def chem_similarity(a: str, b: str, kind: str = "morgan") -> dict[str, Any]:
-    """两个分子的指纹相似度（默认 Morgan/Tanimoto）。kind 可选 morgan / rdkit / maccs。"""
+    """Fingerprint similarity between two molecules (Morgan/Tanimoto by default). `kind`
+    may be morgan, rdkit or maccs.
+
+    两个分子的指纹相似度（默认 Morgan/Tanimoto）。kind 可选 morgan / rdkit / maccs。"""
     return cc.similarity(a, b, kind=kind)
 
 
 @mcp.tool(title="Clean SMILES batch", annotations=WRITES_FILE)
 def chem_batch_clean(smiles_list: list[str], out_csv: str = "") -> dict[str, Any]:
-    """批量清洗：一列 SMILES 进，返回计数摘要 + 失败清单（可选写出 CSV 报表）。
+    """Clean a list of SMILES: returns counts plus the failure list and, optionally,
+    writes a CSV report. Every input row is accounted for (ok / warn / failed);
+    malformed rows are never dropped silently.
 
-    每一行都会有明确归属（ok / warn / failed），不会静默丢弃坏数据。"""
+    批量清洗：一列 SMILES 进，返回计数摘要 + 失败清单（可选写出 CSV 报表）。每一行都会有
+    明确归属（ok / warn / failed），不会静默丢弃坏数据。"""
     return cc.batch_clean(smiles_list, out_csv=out_csv or None)
 
 
