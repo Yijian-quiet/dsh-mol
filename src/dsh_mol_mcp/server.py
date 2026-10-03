@@ -40,6 +40,34 @@ except ModuleNotFoundError as _exc:  # pragma: no cover - 依赖版本不符时�
 
 import chemcore as cc  # noqa: E402
 
+# ---------------------------------------------------------------------------
+# 工具语义注解（MCP 规范里的 ToolAnnotations）
+#
+# 为什么值得写：宿主（Claude Code / Codex / Cursor…）靠这四个 hint 决定
+# "能不能自动放行"和"要不要先警告用户"。不声明时规范默认 destructiveHint=true ——
+# 也就是说**不写等于暗示我们可能破坏东西**，宿主只能每次都来问人。
+#
+# 我们两类工具，语义都是明确的：
+#   READ_ONLY  纯计算，不碰文件系统
+#   WRITES_FILE 会落盘（画图 / 写 CSV），但只新增、不删除不覆盖别人的东西 → destructive=false
+# 全部零网络 → openWorldHint=false；同样的参数重复调用结果一致 → idempotent=true。
+# ---------------------------------------------------------------------------
+
+from mcp.types import ToolAnnotations  # noqa: E402
+
+READ_ONLY = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+WRITES_FILE = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+
 def _with_image(result: dict[str, Any]):
     """把产物图**作为图片内容块**一起返回，让客户端直接渲染（DSH 有 image-card），
     同时保留原有的路径元数据 —— 模型能读路径，人能看到图，两边都不缺。
@@ -83,7 +111,7 @@ except Exception:  # pragma: no cover - SDK 内部结构变化时不影响功能
 # --------------------------------------------------------------------------
 # 工具
 # --------------------------------------------------------------------------
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_check_smiles(smiles: str) -> dict[str, Any]:
     """校验并规范化一个 SMILES。
 
@@ -94,7 +122,7 @@ def chem_check_smiles(smiles: str) -> dict[str, Any]:
     return cc.check(smiles).as_dict()
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_properties(smiles: str) -> dict[str, Any]:
     """计算分子性质：分子式、分子量、精确质量、logP、TPSA、氢键供受体、
     可旋转键、环数、手性中心等。
@@ -103,7 +131,7 @@ def chem_properties(smiles: str) -> dict[str, Any]:
     return cc.properties(smiles)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_analyze(smiles: str) -> dict[str, Any]:
     """分子"深看一层"：基础性质 + 类药性 + 结构警报 + Murcko 骨架，一次给全。
 
@@ -114,7 +142,7 @@ def chem_analyze(smiles: str) -> dict[str, Any]:
     return cc.analyze(smiles)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_druglikeness(smiles: str, catalogs: list[str] | None = None) -> dict[str, Any]:
     """只要类药性与结构警报（Lipinski / Veber / QED / PAINS / BRENK / 骨架）。
 
@@ -123,7 +151,7 @@ def chem_druglikeness(smiles: str, catalogs: list[str] | None = None) -> dict[st
     return cc.druglikeness(smiles, catalogs=tuple(catalogs) if catalogs else cc.DEFAULT_ALERT_CATALOGS)
 
 
-@mcp.tool()
+@mcp.tool(annotations=WRITES_FILE)
 def chem_draw_molecule(
     smiles: str,
     fmt: str = "png",
@@ -151,7 +179,7 @@ def chem_draw_molecule(
     ))
 
 
-@mcp.tool()
+@mcp.tool(annotations=WRITES_FILE)
 def chem_draw_grid(
     smiles_list: list[str],
     mols_per_row: int = 4,
@@ -166,7 +194,7 @@ def chem_draw_grid(
                                     filename=filename))
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_convert(value: str, to: str, src: str = "") -> dict[str, Any]:
     """结构格式互转：smiles / inchi / inchikey / mol / sdf / formula。
 
@@ -174,7 +202,7 @@ def chem_convert(value: str, to: str, src: str = "") -> dict[str, Any]:
     return cc.convert(value, to=to, src=src or None)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_standardize(
     smiles: str,
     strip_salts: bool = True,
@@ -192,25 +220,25 @@ def chem_standardize(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_dedupe(smiles_list: list[str], standardize_first: bool = False) -> dict[str, Any]:
     """按规范化结构去重，保留首次出现顺序，返回重复分组与失败条目。"""
     return cc.dedupe(smiles_list, standardize_first=standardize_first)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_substructure_match(smiles: str, smarts: str) -> dict[str, Any]:
     """用 SMARTS 在分子里查子结构，返回匹配的原子索引列表。"""
     return cc.substructure_match(smiles, smarts)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def chem_similarity(a: str, b: str, kind: str = "morgan") -> dict[str, Any]:
     """两个分子的指纹相似度（默认 Morgan/Tanimoto）。kind 可选 morgan / rdkit / maccs。"""
     return cc.similarity(a, b, kind=kind)
 
 
-@mcp.tool()
+@mcp.tool(annotations=WRITES_FILE)
 def chem_batch_clean(smiles_list: list[str], out_csv: str = "") -> dict[str, Any]:
     """批量清洗：一列 SMILES 进，返回计数摘要 + 失败清单（可选写出 CSV 报表）。
 

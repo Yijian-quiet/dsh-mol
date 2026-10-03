@@ -11,6 +11,7 @@ Pure RDKit. **No network, no API key, no external service.** Also usable as a st
 
 [![ci](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml/badge.svg)](https://github.com/Yijian-quiet/dsh-mol/actions/workflows/ci.yml)
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+[![M8ven Verified](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol?variant=verified)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
