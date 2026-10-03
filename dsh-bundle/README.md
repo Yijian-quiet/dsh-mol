@@ -1,7 +1,7 @@
 # dsh-mol
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
-[![M8ven Verified](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol?variant=verified)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
+[![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 
 
 把 **[dsh-mol](../README.md)**（本地优先的化学工作台）接入 **DeepSeek Harness**。
