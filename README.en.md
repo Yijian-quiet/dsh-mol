@@ -14,7 +14,7 @@ Pure RDKit. **No network, no API key, no external service.** Also usable as a st
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | **English** | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
@@ -176,7 +176,7 @@ export MOL_LANG=en        # zh (default) / en
 | `chem_draw_molecule` | render a structure (PNG/SVG, optional atom indices, substructure highlight) → returns a **file path** |
 | `chem_draw_grid` | multi-molecule grid (for reports/papers); bad entries skipped but recorded one by one |
 | `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula conversion |
-| `chem_bioseq` | peptide / nucleic-acid sequence or HELM → a molecule (and a canonical SMILES the other tools can consume); **kind must be given explicitly** |
+| `chem_bioseq` | peptide / nucleic-acid sequence, HELM or IDT notation → a molecule (and a canonical SMILES the other tools can consume); **kind must be given explicitly** |
 | `chem_standardize` | strip salts / disconnect metals / neutralize / normalize — **recording every change** |
 | `chem_dedupe` | deduplicate by canonical structure, with duplicate groups |
 | `chem_substructure_match` | SMARTS substructure matching, returns atom indices |
@@ -215,8 +215,10 @@ So the rule here is:
   "Cannot tell whether … is a peptide or a nucleic acid, so parsing was refused".
   **We never pick a default for you**: a wrong choice is "chemically completely wrong with no
   trace at all", which is more dangerous than an error.
-- Only **HELM** can be inferred under `auto`: its `PEPTIDE1{` / `RNA1{` / `DNA1{` prefix is a
-  **declaration**, not a guess.
+- **Only** two notations that carry their own type information can be inferred under `auto`:
+  **HELM** (its `PEPTIDE1{` / `RNA1{` / `DNA1{` prefix is a **declaration**, not a guess) and
+  **IDT** (the sugar prefix `r`/`d` is equally a declaration). Everything else is refused under
+  `auto` — a bare sequence (`ACGU` / `ATGC` / `GAVL`) carries no type information and gets no default.
 
 > Two RDKit traps we measured and work around: **DNA is flavor 6, not 3**
 > (3 means "RNA with a 5' phosphate cap" and adds an extra phosphate); and **3-letter amino-acid

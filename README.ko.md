@@ -14,7 +14,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | [English](README.en.md) | [日本語](README.ja.md) | **한국어** | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
@@ -176,7 +176,7 @@ export MOL_LANG=en        # zh(기본) / en
 | `chem_draw_molecule` | 구조 그림 렌더링(PNG/SVG, 원자 번호 표시와 부분 구조 강조 가능). 돌려주는 것은 **파일 경로** |
 | `chem_draw_grid` | 여러 분자 그리드(보고서/논문 그림용). 나쁜 항목은 건너뛰되 하나씩 기록한다 |
 | `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula 상호 변환 |
-| `chem_bioseq` | 펩타이드 / 핵산 서열 또는 HELM → 분자(정규화된 SMILES를 주므로 다른 도구로 이어진다). **kind는 반드시 명시** |
+| `chem_bioseq` | 펩타이드 / 핵산 서열, HELM 또는 IDT 표기법 → 분자(정규화된 SMILES를 주므로 다른 도구로 이어진다). **kind는 반드시 명시** |
 | `chem_standardize` | 탈염 / 금속 제거 / 중화 / 정규화. **바뀐 점을 단계별로 기록** |
 | `chem_dedupe` | 정규화된 구조로 중복 제거, 중복 그룹 반환 |
 | `chem_substructure_match` | SMARTS 부분 구조 매칭, 원자 인덱스 반환 |
@@ -213,7 +213,7 @@ cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM: 접두사가 타입�
 - **맨 서열에는 `kind`를 반드시 명시해야 한다**(`auto`도 마찬가지). 그러지 않으면 곧바로 오류다 ——
   "…이 펩타이드인지 핵산인지 판단할 수 없어 파싱을 거부했다". **호출자 대신 기본값을 골라주지 않는다**:
   잘못 고르면 "화학적으로 완전히 틀렸는데 그 흔적조차 전혀 없는" 상태가 되고, 그게 오류보다 위험하다.
-- `auto`에서 확실히 추론할 수 있는 것은 **HELM**뿐이다: `PEPTIDE1{` / `RNA1{` / `DNA1{` 접두사는 추측이 아니라 **선언**이다.
+- `auto`에서 확실히 추론할 수 있는 것은 타입 정보를 스스로 가진 **두 가지 표기법뿐**이다: **HELM**(`PEPTIDE1{` / `RNA1{` / `DNA1{` 접두사는 추측이 아니라 **선언**이다)과 **IDT**(당 접두사 `r`/`d` 역시 선언이다). 그 밖의 입력은 `auto`에서 예외 없이 거부한다 —— 맨 서열(`ACGU` / `ATGC` / `GAVL`)에는 타입 정보가 없고 기본값도 주지 않는다.
 
 > 관련된 RDKit 함정 두 가지(둘 다 실측했고, 이 프로젝트는 둘 다 피해 간다): **DNA의 flavor는 3이 아니라 6**
 > (3은 "RNA에 5' 인산 캡을 씌운다"는 뜻이라 인산이 하나 더 붙는다). 그리고 **3문자 아미노산 코드는

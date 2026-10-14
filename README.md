@@ -14,7 +14,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 **中文** | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
@@ -176,7 +176,7 @@ export MOL_LANG=en        # zh（默认）/ en
 | `chem_draw_molecule` | 画结构图（PNG/SVG，可标原子编号、可高亮子结构），返回**文件路径** |
 | `chem_draw_grid` | 多分子拼图（汇报/论文附图），坏条目跳过但逐条记录 |
 | `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula 互转 |
-| `chem_bioseq` | 肽 / 核酸序列或 HELM → 分子（给出规范 SMILES，可续接其它工具）；**kind 必须显式指定** |
+| `chem_bioseq` | 肽 / 核酸序列、HELM 或 IDT 记法 → 分子（给出规范 SMILES，可续接其它工具）；**kind 必须显式指定** |
 | `chem_standardize` | 去盐 / 去金属 / 中和 / 规范化，**逐步记录改了什么** |
 | `chem_dedupe` | 按规范化结构去重，给出重复分组 |
 | `chem_substructure_match` | SMARTS 子结构匹配，返回原子索引 |
@@ -214,7 +214,7 @@ cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM：前缀自带类型�
 - **裸序列必须显式指定 `kind`**（`auto` 也要求），否则直接报错 ——
   「无法判断 … 是肽还是核酸，已拒绝解析」。**绝不替调用方选默认值**：
   选错是"化学上完全错误且没有任何迹象"，比报错危险得多。
-- 只有 **HELM** 能在 `auto` 下确定推断：它的 `PEPTIDE1{` / `RNA1{` / `DNA1{` 前缀是**声明**，不是猜。
+- `auto` 能确定推断的**只有**两类自带类型信息的记法：**HELM**（它的 `PEPTIDE1{` / `RNA1{` / `DNA1{` 前缀是**声明**，不是猜）和 **IDT**（糖型前缀 `r`/`d` 同样是声明）。除此之外 `auto` 一律拒绝 —— 裸序列（`ACGU` / `ATGC` / `GAVL`）没有类型信息，不会拿到默认值。
 
 > 两个相关的 RDKit 坑（都实测过，本项目都绕开了）：**DNA 的 flavor 是 6 不是 3**
 > （3 是"给 RNA 加 5' 磷酸帽"，会多接一个磷酸）；而 **3 字母氨基酸码 RDKit 2023.09.6

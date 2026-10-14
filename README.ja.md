@@ -14,7 +14,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | [English](README.en.md) | **日本語** | [한국어](README.ko.md) | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
@@ -176,7 +176,7 @@ export MOL_LANG=en        # zh（既定）/ en
 | `chem_draw_molecule` | 構造図を描く（PNG/SVG。原子番号の表示、部分構造のハイライトが可能）。返すのは**ファイルパス** |
 | `chem_draw_grid` | 複数分子のグリッド画像（報告や論文の図に）。壊れた項目は飛ばすが、一件ずつ記録に残す |
 | `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula の相互変換 |
-| `chem_bioseq` | ペプチド／核酸の配列または HELM → 分子（正規化した SMILES を返し、他のツールに繋げられる）。**kind の明示が必須** |
+| `chem_bioseq` | ペプチド／核酸の配列、HELM または IDT 記法 → 分子（正規化した SMILES を返し、他のツールに繋げられる）。**kind の明示が必須** |
 | `chem_standardize` | 脱塩 / 金属の切断 / 中和 / 正規化。**変更点を逐次記録** |
 | `chem_dedupe` | 正規化した構造で重複排除し、重複グループを返す |
 | `chem_substructure_match` | SMARTS による部分構造マッチ。原子インデックスを返す |
@@ -214,7 +214,7 @@ cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM：接頭辞が型を�
 - **裸の配列には `kind` の明示が必須**（`auto` でも必要）。なければエラーにする ——
   「…がペプチドなのか核酸なのか判断できないため、解析を拒否した」。**呼び出し側の代わりに既定値を選ぶことは絶対にしない**：
   選び間違えると「化学的に完全に間違っていて、しかもその痕跡が一切ない」状態になり、エラーより危険だから。
-- `auto` で確実に推論できるのは **HELM** だけ：その `PEPTIDE1{` / `RNA1{` / `DNA1{` という接頭辞は**宣言**であって、推測ではない。
+- `auto` で確実に推論できるのは、型情報を自前で持つ**二種類の記法だけ**：**HELM**（`PEPTIDE1{` / `RNA1{` / `DNA1{` という接頭辞は**宣言**であって、推測ではない）と **IDT**（糖型の接頭辞 `r`/`d` も同じく宣言）。それ以外は `auto` では一律に拒否する —— 裸の配列（`ACGU` / `ATGC` / `GAVL`）には型情報がなく、既定値も与えない。
 
 > 関連する RDKit の罠が二つ（どちらも実測済みで、本プロジェクトはどちらも回避している）：**DNA の flavor は 3 ではなく 6**
 > （3 は「RNA に 5' リン酸キャップを付ける」意味で、リン酸が一つ余分に付く）。そして **3 文字アミノ酸コードは

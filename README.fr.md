@@ -14,7 +14,7 @@ RDKit pur. **Aucun réseau, aucune clé d'API, aucun service externe.** Utilisab
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | **Français** | [繁體中文](README.zh-TW.md)
@@ -176,7 +176,7 @@ export MOL_LANG=en        # zh (défaut) / en
 | `chem_draw_molecule` | dessiner une structure (PNG/SVG, indices d'atomes et mise en évidence de sous-structure en option) → renvoie un **chemin de fichier** |
 | `chem_draw_grid` | grille multi-molécules (pour rapports et articles) ; les entrées invalides sont écartées mais consignées une par une |
 | `chem_convert` | conversion smiles / inchi / inchikey / mol / sdf / formula |
-| `chem_bioseq` | séquence de peptide / d'acide nucléique ou HELM → une molécule (et un SMILES canonique que les autres outils peuvent consommer) ; **kind doit être explicite** |
+| `chem_bioseq` | séquence de peptide / d'acide nucléique, HELM ou notation IDT → une molécule (et un SMILES canonique que les autres outils peuvent consommer) ; **kind doit être explicite** |
 | `chem_standardize` | retirer les sels / déconnecter les métaux / neutraliser / normaliser — **chaque modification est enregistrée** |
 | `chem_dedupe` | déduplication par structure canonique, avec les groupes de doublons |
 | `chem_substructure_match` | recherche de sous-structure SMARTS, renvoie les indices d'atomes |
@@ -215,8 +215,11 @@ La règle est donc la suivante :
   « impossible de déterminer si … est un peptide ou un acide nucléique, analyse refusée ».
   **Nous ne choisissons jamais de valeur par défaut à votre place** : un mauvais choix donne un résultat
   « chimiquement complètement faux, et sans la moindre trace », ce qui est plus dangereux qu'une erreur.
-- Seul **HELM** peut être déduit sous `auto` : son préfixe `PEPTIDE1{` / `RNA1{` / `DNA1{` est une
-  **déclaration**, pas une supposition.
+- **Seules** deux notations qui portent elles-mêmes leur information de type peuvent être déduites
+  sous `auto` : **HELM** (son préfixe `PEPTIDE1{` / `RNA1{` / `DNA1{` est une **déclaration**, pas
+  une supposition) et **IDT** (le préfixe de sucre `r`/`d` est lui aussi une déclaration). Tout le
+  reste est refusé sous `auto` : une séquence nue (`ACGU` / `ATGC` / `GAVL`) ne porte aucune
+  information de type et ne reçoit aucune valeur par défaut.
 
 > Deux pièges RDKit que nous avons mesurés et contournés : **le flavor du DNA est 6, pas 3**
 > (3 signifie « RNA avec une coiffe phosphate en 5' » et ajoute un phosphate superflu) ; et **les codes
