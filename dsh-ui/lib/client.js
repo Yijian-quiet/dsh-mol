@@ -65,6 +65,7 @@ window.__ModuleLoader__.load({
       compare: '',           // 相似度对比分子
       smarts: 'c1ccccc1',    // 子结构匹配的 SMARTS
       batch: '',             // 批量页签的清单
+      bioKind: 'auto',       // 大分子解析口径（auto/peptide/peptide3/rna/dna/helm）
       thumb: '',             // 分析页签的结构缩略图（object URL）
       result: null,          // { kind, ok, data, error }
       busy: false,
@@ -260,6 +261,15 @@ window.__ModuleLoader__.load({
       }, title, extra ?? null),
       children,
     )
+
+    /** 下拉选择（大分子类型用）—— 项目里原本只有 input/button，这里补一个同风格的。 */
+    const select = (value, onChange, options, opts = {}) => h('select', {
+      value, onChange: (e) => onChange(e.target.value), 'data-chem-select': opts.id,
+      style: {
+        padding: '5px 6px', fontSize: 12, borderRadius: 6,
+        border: `1px solid ${C.border}`, background: '#ffffff', color: C.text,
+      },
+    }, options.map(([v, label]) => h('option', { key: v, value: v }, label)))
 
     const field = (value, onChange, opts = {}) => h('input', {
       type: 'text', value, placeholder: opts.placeholder, onChange: (e) => onChange(e.target.value),
@@ -465,6 +475,30 @@ window.__ModuleLoader__.load({
       if (!r.ok) return alertBox('err', r.message || '未知错误')
 
       const d = r.data
+      if (r.kind === 'bioseq') {
+        const d = r.data
+        return h('div', null,
+          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 } },
+            kv('类型', `${d.kind}${d.format === 'helm' ? ' · HELM' : ''}`, { soft: true }),
+            d.residues != null ? kv('残基数', d.residues) : null,
+            d.formula ? kv('分子式', d.formula) : null,
+            d.mw != null ? kv('分子量', d.mw) : null,
+            d.exact_mw != null ? kv('精确质量', d.exact_mw) : null,
+            d.heavy_atoms != null ? kv('重原子', d.heavy_atoms) : null),
+          d.sequence ? h('div', { style: { fontSize: 12, marginBottom: 6 } },
+            h('span', { style: { color: C.muted } }, '规范序列：'), mono(d.sequence)) : null,
+          h('div', { style: { fontSize: 12, marginBottom: 8 } },
+            h('span', { style: { color: C.muted } }, '生成的 SMILES（已填进上面的输入框）：'), mono(d.smiles || '')),
+          d.warnings?.length
+            ? alertBox('warn', h('div', null,
+              h('div', { style: { fontWeight: 600, marginBottom: 2 } }, '解析时的提醒'),
+              h('div', null, d.warnings.join('；'))))
+            : null,
+          h('div', { style: { marginTop: 10 } },
+            button('用这个分子继续分析', () => {
+              void run('analyze', 'analyze', { smiles: d.smiles }, '分析')
+            }, { id: 'bioseq-then-analyze', primary: true, busy: s.busy })))
+      }
       if (r.kind === 'analyze') {
         return h('div', null,
           section('基础性质', h(PropTable, { data: d.properties })),
@@ -571,6 +605,35 @@ window.__ModuleLoader__.load({
         })
       }
 
+      /**
+       * 大分子：把序列/HELM 转成分子。
+       * 成功后**把生成的 SMILES 填回输入框** —— 这样上面那些既有按钮（性质/类药性/标准化/画图）
+       * 全都能直接接着用，不需要为"大分子"再维护一套分析管线。
+       */
+      const runSeq = async () => {
+        const value = (s.draftInput || '').trim()
+        if (!value) { say('先给一个序列或 HELM', 'warn'); return }
+        setState({ busy: true, status: '解析大分子…', statusTone: 'muted' })
+        const response = await callTool('bioseq', { value, kind: s.bioKind })
+        if (!response.ok) {
+          setState({
+            busy: false, status: '解析失败', statusTone: 'err',
+            result: { kind: 'bioseq', ok: false, message: response.message, code: response.code },
+          })
+          return
+        }
+        const r = response.result
+        setState({
+          busy: false,
+          draftInput: r.smiles || value,
+          smiles: r.smiles || '',
+          thumb: '',
+          result: { kind: 'bioseq', ok: true, data: r },
+          status: `已解析为分子 ${r.formula || ''}`.trim(),
+          statusTone: 'ok',
+        })
+      }
+
       const takeFromCanvas = async () => {
         const read = await readCanvas(frameRef.current)
         const info = describeCanvasRead(read)
@@ -610,6 +673,21 @@ window.__ModuleLoader__.load({
             button('标准化', () => { void run('standardize', 'standardize', { smiles: s.draftInput }, '标准化') }, { id: 'standardize' })),
 
           h('div', { style: { height: 1, background: C.border, margin: '2px 0' } }),
+
+          // 大分子（肽/核酸）：**必须由人/agent 显式指定类型**，不做"看起来像序列就自动转" ——
+          // `CCO` 也是纯字母、`C` 还是半胱氨酸的字母，猜错会得到化学上完全错误的分子且毫无迹象。
+          // chemcore 的 parse_bioseq 同样拒绝猜（裸序列 + auto 直接报错）。
+          section('大分子（肽 / 核酸）', h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+            h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
+              select(s.bioKind, (v) => setState({ bioKind: v }), [
+                ['auto', '自动（仅 HELM）'], ['peptide', '肽 · 1 字母'], ['peptide3', '肽 · 3 字母'],
+                ['rna', 'RNA'], ['dna', 'DNA'], ['helm', 'HELM'],
+              ], { id: 'bio-kind' }),
+              button('按大分子解析', () => { void runSeq() }, { id: 'bioseq', busy: s.busy })),
+            h('div', { style: { fontSize: 11, color: C.faint, lineHeight: 1.6 } },
+              '把序列/HELM 转成分子，之后上面那些按钮都能用。',
+              h('br'),
+              '注意：`ATGC` 这类串有歧义（既是氨基酸字母也是碱基），所以只选「自动」时仅 HELM 能通过。'))),
 
           section('格式转换', h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
             [['smiles', 'SMILES'], ['inchi', 'InChI'], ['inchikey', 'InChIKey'], ['formula', '分子式']].map(([to, label]) => button(label, () => {
