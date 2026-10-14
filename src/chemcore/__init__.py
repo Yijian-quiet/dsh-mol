@@ -37,7 +37,7 @@ from .search import find_similar, similarity, substructure_match
 from .standardize import dedupe, standardize
 from .validate import CheckResult, Diagnostic, canonicalize, check
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 __all__ = [
     "CheckResult", "Diagnostic", "check", "canonicalize",

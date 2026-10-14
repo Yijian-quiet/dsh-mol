@@ -347,7 +347,7 @@ node dsh-ui/tests/verify-ui.cjs
 - **InChI does not support the `*` dummy atom**: polymer RU-SMILES (e.g. `*OCCOC(=O)c1ccc(C(=O)O*)cc1`) **cannot** be converted to InChI / InChIKey.
   We **do not silently return an empty string** (RDKit does); we raise a clear error and suggest canonical SMILES as the unique identifier —
   because the most common input in this field is exactly the one carrying `*`.
-- This is `v0.0.3`: the API may change; issues are welcome.
+- This is an **early 0.x release**: the API may change; issues are welcome.
 
 ## Repository layout
 

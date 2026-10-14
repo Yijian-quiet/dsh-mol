@@ -335,7 +335,7 @@ node dsh-ui/tests/verify-ui.cjs
 - **InChI 不支持 `*` 虚原子**：聚合物 RU-SMILES（如 `*OCCOC(=O)c1ccc(C(=O)O*)cc1`）**转不了** InChI / InChIKey。
   我们**不会静默返回空串**（RDKit 会），而是明确报错并建议用 canonical SMILES 做唯一标识 ——
   因为这个领域最常见的输入正好就是带 `*` 的。
-- 这是 `v0.0.3`：API 可能变；欢迎提 issue。
+- 这是 **0.x 早期版本**：API 可能变；欢迎提 issue。
 
 ## 仓库结构
 

@@ -350,7 +350,7 @@ node dsh-ui/tests/verify-ui.cjs
 - **InChI ne prend pas en charge l'atome factice `*`** : les RU-SMILES de polymères (par ex. `*OCCOC(=O)c1ccc(C(=O)O*)cc1`) **ne peuvent pas** être convertis en InChI / InChIKey.
   Nous **ne renvoyons pas silencieusement une chaîne vide** (ce que fait RDKit) ; nous levons une erreur claire et suggérons le SMILES canonique comme identifiant unique —
   parce que l'entrée la plus courante dans ce domaine est justement celle qui porte un `*`.
-- Ceci est `v0.0.3` : l'API peut changer ; les issues sont bienvenues.
+- Il s'agit d'une **version 0.x précoce** : l'API peut changer ; les issues sont bienvenues.
 
 ## Arborescence du dépôt
 
