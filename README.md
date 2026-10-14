@@ -17,7 +17,7 @@
 ![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
-[English](README.en.md) | 中文
+**中文** | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
 
 <img src="docs/workbench-analyze.png" alt="化学工作台 · 分析页签" width="820">
 
@@ -270,7 +270,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 协议级冒烟（真起服�
 bash tests/run_all.sh                        # 上面两件 + 自测，一把梭
 ```
 
-界面用 Playwright 无头验收（26 条断言，覆盖"打开工作台后聊天还能不能用""数字是不是真算的"
+界面用 Playwright 无头验收（33 条断言，覆盖"打开工作台后聊天还能不能用""数字是不是真算的"
 "后端没装好时会不会编路线"）：
 
 ```bash
@@ -313,7 +313,7 @@ node dsh-ui/tests/verify-ui.cjs
 - **InChI 不支持 `*` 虚原子**：聚合物 RU-SMILES（如 `*OCCOC(=O)c1ccc(C(=O)O*)cc1`）**转不了** InChI / InChIKey。
   我们**不会静默返回空串**（RDKit 会），而是明确报错并建议用 canonical SMILES 做唯一标识 ——
   因为这个领域最常见的输入正好就是带 `*` 的。
-- 这是 `v0.0.1`：API 可能变；欢迎提 issue。
+- 这是 `v0.0.3`：API 可能变；欢迎提 issue。
 
 ## 仓库结构
 
@@ -349,3 +349,7 @@ SDK **2.x 把 `FastMCP` 改名成了 `MCPServer`**，API 有破坏性变更。
 ## 许可
 
 MIT
+
+<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:tool-count 13 -->
+<!-- dsh-mol:ui-assertions 33 -->

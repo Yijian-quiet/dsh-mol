@@ -17,7 +17,7 @@ Pure RDKit. **No network, no API key, no external service.** Also usable as a st
 ![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
-[中文](README.md) | English
+[中文](README.md) | **English** | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
 
 <img src="docs/workbench-analyze.png" alt="Chemistry workbench · Analyze tab" width="820">
 
@@ -273,7 +273,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real server, 
 bash tests/run_all.sh                        # the two above plus self-checks, in one shot
 ```
 
-The UI is accepted headless with Playwright (26 assertions, covering "can you still use the chat after opening the workbench",
+The UI is accepted headless with Playwright (33 assertions, covering "can you still use the chat after opening the workbench",
 "are those numbers actually computed", and "does it invent a route when the backend is not installed"):
 
 ```bash
@@ -318,7 +318,7 @@ node dsh-ui/tests/verify-ui.cjs
 - **InChI does not support the `*` dummy atom**: polymer RU-SMILES (e.g. `*OCCOC(=O)c1ccc(C(=O)O*)cc1`) **cannot** be converted to InChI / InChIKey.
   We **do not silently return an empty string** (RDKit does); we raise a clear error and suggest canonical SMILES as the unique identifier —
   because the most common input in this field is exactly the one carrying `*`.
-- This is `v0.0.1`: the API may change; issues are welcome.
+- This is `v0.0.3`: the API may change; issues are welcome.
 
 ## Repository layout
 
@@ -354,3 +354,7 @@ Our `[mcp]` extra already pins `<2`; if you installed 2.x by hand, `dsh-mol-mcp`
 ## License
 
 MIT
+
+<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:tool-count 13 -->
+<!-- dsh-mol:ui-assertions 33 -->

@@ -500,9 +500,12 @@ window.__ModuleLoader__.load({
               h('div', null, d.warnings.join('；'))))
             : null,
           h('div', { style: { marginTop: 10 } },
+            // 注意：ResultView 拿不到 AnalyzeTab 里的 s / run —— 必须由 props 传进来。
+            // （踩过：直接引用 s.busy / run 会 ReferenceError，把整个 shell.overlay 槽位搞崩，
+            //  表现是"点了按大分子解析，工作台整个消失"。）
             button('用这个分子继续分析', () => {
-              void run('analyze', 'analyze', { smiles: d.smiles }, '分析')
-            }, { id: 'bioseq-then-analyze', primary: true, busy: s.busy })))
+              if (typeof props.onAnalyze === 'function') props.onAnalyze(d.smiles)
+            }, { id: 'bioseq-then-analyze', primary: true, busy: props.busy })))
       }
       if (r.kind === 'analyze') {
         return h('div', null,
@@ -747,7 +750,11 @@ window.__ModuleLoader__.load({
           s.caps?.rdkit && s.caps.rdkit.ready === false
             ? alertBox('err', `本地计算服务没起来：${s.caps.rdkit.detail || 'RDKit 不可用'}\n请检查 dsh 日志里 chem-ui 的报错，或确认 python3 环境里有 rdkit。`)
             : null,
-          h(ResultView, { result: s.result }),
+          h(ResultView, {
+            result: s.result,
+            busy: s.busy,
+            onAnalyze: (smiles) => { void run('analyze', 'analyze', { smiles }, '分析') },
+          }),
         ),
       )
     }

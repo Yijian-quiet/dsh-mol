@@ -787,14 +787,96 @@ def _():
 
 
 # ---------------------------------------------------------------- 汇总
+# 语言无关的机器可读标记。每个 README*.md（含翻译版）都必须带这两行，
+# 位置固定在文件末尾（许可章节之后），一行一个数字：
+#     <!-- dsh-mol:test-count 65 -->
+#     <!-- dsh-mol:tool-count 13 -->
+README_TEST_MARKER = "dsh-mol:test-count"
+README_TOOL_MARKER = "dsh-mol:tool-count"
+
+
+def _actual_tool_count():
+    """实际注册的 MCP 工具数 —— 从适配层源码里数 @mcp.tool 装饰器，不在这里写死。
+
+    返回 None 表示数不出来（源码缺失、或注册方式改了）：调用方会跳过工具数校验，
+    而不是拿一个假数字去误报六个 README。
+    """
+    import pathlib, re
+    src = (pathlib.Path(__file__).resolve().parent.parent
+           / "src" / "dsh_mol_mcp" / "server.py")
+    if not src.exists():
+        return None
+    n = len(re.findall(r"^@mcp\.tool\(", src.read_text(encoding="utf-8"), re.M))
+    return n or None
+
+
+README_UI_MARKER = "dsh-mol:ui-assertions"
+
+
+def _actual_ui_assertions():
+    """界面验收的**断言总数**，从 `dsh-ui/tests/ui-assertions.json` 读。
+
+    这个数字只能由跑过 Playwright 的那次运行写入（`verify-ui.cjs` 结尾自己记），
+    Python 侧算不出来 —— 所以设计成"跑过就有记录、没跑过就不校验"，而不是猜一个数。
+    文件不存在时返回 None（CI 只跑 Python 测试，不跑浏览器，不该因此报错）。
+    """
+    import json
+    import pathlib
+    f = pathlib.Path(__file__).resolve().parent.parent / "dsh-ui" / "tests" / "ui-assertions.json"
+    if not f.exists():
+        return None
+    try:
+        return int(json.loads(f.read_text(encoding="utf-8"))["total"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
 def check_readme_count():
-    """README 里写的用例数必须与实际一致 —— 文档数字最容易悄悄过期。"""
+    """README 里写的数字必须与实际一致 —— 文档数字最容易悄悄过期。
+
+    两道机制并用：
+
+    1. **语言无关的标记**（新增）：扫仓库根下所有 `README*.md`，每份都必须带
+       `<!-- dsh-mol:test-count N -->`（以及工具数 `<!-- dsh-mol:tool-count N -->`），
+       且 N 等于实际值。翻译版没有中文/英文正则可用，靠的就是这个标记 ——
+       缺标记要报错，数字不符也要报错，翻译版不会悄悄过期。
+    标记制还覆盖**界面断言数**（`dsh-mol:ui-assertions`）：那个数只能由跑过 Playwright 的
+    `verify-ui.cjs` 写进 `dsh-ui/tests/ui-assertions.json`，所以"没跑过就不校验"，
+    不会让只跑 Python 的 CI 误报。
+
+    2. **中文/英文原文正则**（保留）：`(\\d+)\\s*个核心用例` / `(\\d+)\\s*core cases`，
+       对 `README.md` / `README.en.md` 仍然有意义，所以不删。
+    """
     import pathlib, re
     total = len(PASS) + len(FAIL)
+    tools = _actual_tool_count()
+    ui = _actual_ui_assertions()
+    root = pathlib.Path(__file__).resolve().parent.parent
     problems = []
+
+    readmes = sorted(root.glob("README*.md"))
+    if not readmes:
+        problems.append("仓库根下没找到任何 README*.md")
+    for p in readmes:
+        text = p.read_text(encoding="utf-8")
+        checks = [("用例数", README_TEST_MARKER, total)]
+        if tools is not None:
+            checks.append(("工具数", README_TOOL_MARKER, tools))
+        if ui is not None:
+            checks.append(("界面断言数", README_UI_MARKER, ui))
+        for label, marker, actual in checks:
+            m = re.search(rf"<!--\s*{re.escape(marker)}\s+(\d+)\s*-->", text)
+            if not m:
+                problems.append(
+                    f"{p.name}: 缺少语言无关标记 <!-- {marker} {actual} -->（{label}）")
+            elif int(m.group(1)) != actual:
+                problems.append(
+                    f"{p.name}: {label}标记写的是 {m.group(1)}，实际 {actual}")
+
+    # 旧机制：中文/英文原文里的用例数声明（保留，向后兼容）
     for f, pat in (("README.md", r"(\d+)\s*个核心用例"),
                    ("README.en.md", r"(\d+)\s*core cases")):
-        p = pathlib.Path(__file__).resolve().parent.parent / f
+        p = root / f
         if not p.exists():
             continue
         m = re.search(pat, p.read_text(encoding="utf-8"))
@@ -809,7 +891,7 @@ if __name__ == "__main__":
     total = len(PASS) + len(FAIL)
     print(f"\n通过 {len(PASS)}/{total}")
     for prob in check_readme_count():
-        FAIL.append(("README 用例数与实际不一致", prob))
+        FAIL.append(("README 文档数字与实际不一致", prob))
         print(f"  ✗ {prob}")
     for name, why in FAIL:
         print(f"  ✗ {name}\n      {why}")
