@@ -23,6 +23,7 @@ from typing import Any, Callable
 
 from .analyze import DEFAULT_CATALOGS, analyze, druglikeness
 from .batch import batch_clean
+from .bioseq import parse_bioseq
 from .convert import convert
 from .draw import draw, draw_grid
 from .props import descriptors_available, properties
@@ -60,6 +61,12 @@ def _op_substructure(smiles: str, smarts: str, **kw: Any) -> Any:
 
 def _op_convert(value: str, **kw: Any) -> Any:
     return convert(value, to=str(kw.get("to", "smiles")), src=kw.get("src") or None)
+
+
+def _op_bioseq(value: str, **kw: Any) -> Any:
+    # kind 默认 auto：只有 HELM（自带 PEPTIDE1/RNA1 前缀）能确定推断，
+    # 裸序列在 auto 下会**明确报错**要求指定类型，不会替调用方猜。
+    return parse_bioseq(value, kind=str(kw.get("kind", "auto")))
 
 
 def _op_batch_clean(smiles_list: list[str], **kw: Any) -> Any:
@@ -105,6 +112,7 @@ OPS: dict[str, Callable[..., Any]] = {
     "standardize": _op_standardize,
     "dedupe": _op_dedupe,
     "convert": _op_convert,
+    "bioseq": _op_bioseq,
     "batch_clean": _op_batch_clean,
     "draw": _op_draw,
     "draw_grid": _op_draw_grid,

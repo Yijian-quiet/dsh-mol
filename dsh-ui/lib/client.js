@@ -149,10 +149,63 @@ window.__ModuleLoader__.load({
       try { return frame?.contentWindow?.ketcher ?? null } catch { return null }
     }
 
+    /**
+     * 读画板 —— **小分子和大分子是两套 API**，这是踩出来的。
+     *
+     * Ketcher 3.x 自带大分子编辑器（右上角模式下拉里的 Macromolecules：RNA / DNA / PEP）。
+     * 进了那个模式之后：
+     *   - `getSmiles()` 不是返回空串，而是**直接抛异常**（实测，2026-10-03）
+     *   - 大分子的表示是序列 / IDT / HELM 这类文本，SMILES 本来就不适用
+     * 所以原来"只调 getSmiles、失败就当没就绪"的写法，在用户画肽/核酸时会表现成
+     * "点了没反应"——这是用户反馈的真实 bug。
+     *
+     * 现在按"信息量从高到低"依次试，并**把类型一起带回来**（上层要据此决定怎么写进对话）：
+     *   smiles   小分子，可直接进 RDKit
+     *   idt      Integrated DNA Technologies 记法（自带碱基类型，最不易歧义）
+     *   sequence 序列（1 字母或 3 字母）
+     *   fasta    FASTA
+     *   ket      Ketcher 自己的 JSON（只有它时至少能判断"画布上有没有东西"）
+     *   empty    确实什么都没有
+     *
+     * @returns {Promise<{kind: string, value: string}>}
+     */
     async function readCanvas(frame) {
       const k = ketcherApi(frame)
-      if (!k) return null
-      try { return (await k.getSmiles()) || '' } catch { return null }
+      if (!k) return { kind: 'not-ready', value: '' }
+
+      // 1) 小分子路径：SMILES
+      try {
+        const s = await k.getSmiles()
+        if (s && s.trim()) return { kind: 'smiles', value: s.trim() }
+      } catch {
+        // 大分子模式下这里会抛 —— 属于预期，继续往下试，不要当成失败
+      }
+
+      // 2) 大分子路径：依次试带类型的表示
+      for (const [kind, method] of [['idt', 'getIdt'], ['sequence', 'getSequence'], ['fasta', 'getFasta']]) {
+        try {
+          if (typeof k[method] !== 'function') continue
+          const v = await k[method]()
+          if (v && v.trim()) return { kind, value: v.trim() }
+        } catch { /* 该表示不适用，继续 */ }
+      }
+
+      // 3) 兜底：KET —— 用来区分"画布是空的"和"有东西但我读不出序列"
+      try {
+        const ket = await k.getKet()
+        const nodes = ket ? (JSON.parse(ket)?.root?.nodes?.length ?? 0) : 0
+        if (nodes > 0) return { kind: 'ket', value: ket }
+      } catch { /* 忽略 */ }
+
+      return { kind: 'empty', value: '' }
+    }
+
+    /** 大分子那几种表示在界面上怎么说人话。 */
+    const BIO_KIND_LABEL = {
+      idt: 'IDT 序列',
+      sequence: '序列',
+      fasta: 'FASTA 序列',
+      ket: '结构',
     }
 
     /**
@@ -255,30 +308,61 @@ window.__ModuleLoader__.load({
     /* 画板页签                                                            */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * 把画板读到的东西变成"人和 agent 都能用"的一段文字。
+     *
+     * 小分子就是 SMILES；大分子（肽/核酸）没有 SMILES，交给序列 + 明确的类型 ——
+     * **类型必须写出来**：`ATGC` 这种序列有歧义（A/T/G/C 既是氨基酸字母又是碱基字母），
+     * 不说清是肽还是 DNA，下游会静默算成一个化学上完全错误的分子。
+     */
+    function describeCanvasRead(read) {
+      if (read.kind === 'smiles') return { text: read.value, kindLabel: '小分子（SMILES）', analyzable: true }
+      if (read.kind === 'idt' || read.kind === 'sequence' || read.kind === 'fasta') {
+        const label = BIO_KIND_LABEL[read.kind]
+        return {
+          text: `画板上的大分子（${label}）：${read.value}`,
+          kindLabel: label,
+          analyzable: false,          // 需要 chem_bioseq 先转成分子，见 analyze 页签
+        }
+      }
+      if (read.kind === 'ket') {
+        return { text: '画板上的大分子结构（Ketcher KET 格式，未取到序列）', kindLabel: '大分子（KET）', analyzable: false }
+      }
+      if (read.kind === 'not-ready') return { text: '', kindLabel: '画板未就绪', analyzable: false }
+      return { text: '', kindLabel: '画板是空的', analyzable: false }
+    }
+
     function DrawTab(props) {
       const { s, frameRef } = props
       const take = async (then) => {
-        const smiles = await readCanvas(frameRef.current)
-        if (smiles === null) { say('画板还没就绪', 'warn'); return }
-        if (!smiles) { say('画板是空的', 'warn'); return }
-        setState({ smiles, draftInput: smiles })
-        const thumb = await makeThumb(frameRef.current, smiles)
-        setState({ thumb: thumb || state.thumb })
-        say(`已读入结构：${smiles.length > 40 ? smiles.slice(0, 40) + '…' : smiles}`, 'ok')
-        if (then) then(smiles)
+        const read = await readCanvas(frameRef.current)
+        const info = describeCanvasRead(read)
+        if (!read.value) { say(info.kindLabel, 'warn'); return }
+        // 小分子进 SMILES 字段；大分子进同一个字段也没问题 —— 分析页签会按形态分流
+        setState({ smiles: read.kind === 'smiles' ? read.value : '', draftInput: read.value })
+        if (read.kind === 'smiles') {
+          const thumb = await makeThumb(frameRef.current, read.value)
+          setState({ thumb: thumb || state.thumb })
+        } else {
+          setState({ thumb: '' })
+        }
+        say(`已读入${info.kindLabel}：${read.value.length > 40 ? read.value.slice(0, 40) + '…' : read.value}`, 'ok')
+        if (then) then(read.value)
       }
 
       const insert = async () => {
-        const smiles = await readCanvas(frameRef.current)
-        if (!smiles) { say('画板是空的', 'warn'); return }
-        const r = appendToDraft(s.sessionId, smiles)
-        say(r === 'ok' ? '结构已写入输入框' : r, r === 'ok' ? 'ok' : 'err')
+        const read = await readCanvas(frameRef.current)
+        const info = describeCanvasRead(read)
+        if (!read.value) { say(info.kindLabel, 'warn'); return }
+        const r = appendToDraft(s.sessionId, info.text)
+        say(r === 'ok' ? `已写入输入框（${info.kindLabel}）` : r, r === 'ok' ? 'ok' : 'err')
       }
 
       const ask = async (fn) => {
-        const smiles = await readCanvas(frameRef.current)
-        if (!smiles) { say('画板是空的', 'warn'); return }
-        const r = appendToDraft(s.sessionId, fn.prompt(smiles))
+        const read = await readCanvas(frameRef.current)
+        const info = describeCanvasRead(read)
+        if (!read.value) { say(info.kindLabel, 'warn'); return }
+        const r = appendToDraft(s.sessionId, fn.prompt(info.text))
         say(r === 'ok' ? `「${fn.label}」已写入输入框` : r, r === 'ok' ? 'ok' : 'err')
       }
 
@@ -488,11 +572,13 @@ window.__ModuleLoader__.load({
       }
 
       const takeFromCanvas = async () => {
-        const smiles = await readCanvas(frameRef.current)
-        if (!smiles) { say('画板是空的', 'warn'); return }
-        setState({ draftInput: smiles, smiles })
-        const thumb = await makeThumb(frameRef.current, smiles)
+        const read = await readCanvas(frameRef.current)
+        const info = describeCanvasRead(read)
+        if (!read.value) { say(info.kindLabel, 'warn'); return }
+        setState({ draftInput: read.value, smiles: read.kind === 'smiles' ? read.value : '' })
+        const thumb = read.kind === 'smiles' ? await makeThumb(frameRef.current, read.value) : ''
         setState({ thumb: thumb || '' })
+        say(read.kind === 'smiles' ? '已读入 SMILES' : `已读入${info.kindLabel}（点「基础性质」我会先转成分子）`, 'ok')
       }
 
       const handOff = () => {
@@ -713,9 +799,15 @@ window.__ModuleLoader__.load({
           h('div', { style: { display: 'flex', gap: 6 } },
             field(s.draftInput, (v) => setState({ draftInput: v }), { placeholder: 'SMILES' }),
             button('取画板', async () => {
-              const smiles = await readCanvas(props.frameRef.current)
-              if (!smiles) { say('画板是空的', 'warn'); return }
-              setState({ draftInput: smiles, smiles })
+              const read = await readCanvas(props.frameRef.current)
+              const info = describeCanvasRead(read)
+              if (!read.value) { say(info.kindLabel, 'warn'); return }
+              if (read.kind !== 'smiles') {
+                // 逆合成目前只吃小分子：大分子要先有分子式/砌块概念才有意义
+                say(`${info.kindLabel}不适合直接做逆合成（逆合成针对小分子）`, 'warn')
+                return
+              }
+              setState({ draftInput: read.value, smiles: read.value })
             }, { id: 'retro-take' })),
           button('开始逆合成', () => { void run(false) }, { id: 'retro-run', primary: true, big: true, busy: s.retroBusy }),
           h('div', { style: { fontSize: 11, color: C.muted, lineHeight: 1.7 } },

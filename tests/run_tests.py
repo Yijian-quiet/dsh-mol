@@ -592,6 +592,7 @@ def _():
         "standardize": {"smiles": "[Na+].CC(=O)[O-]"},
         "dedupe": {"smiles_list": ["CCO", "OCC"]},
         "convert": {"value": "CCO", "to": "inchikey"},
+        "bioseq": {"value": "GAVL", "kind": "peptide"},
         "batch_clean": {"smiles_list": ["CCO", "C1CC"]},
         "draw": {"smiles": "CCO"},
         "draw_grid": {"smiles_list": ["CCO", "CCC"]},
@@ -604,6 +605,185 @@ def _():
                 params = {**params, "out": d}
             out = cli.run({"op": op, **params})
             eq(out["ok"], True, f"{op} 应成功：{out.get('message')}")
+
+
+# ---------------------------------------------------------------- bioseq
+# 大分子（肽 / 核酸）：Ketcher 里画的这些东西没有 SMILES，只有序列或 HELM。
+# 这里的回归重点是两条 —— (1) 四种类型都算得对；(2) **绝不猜类型**。
+@case("bioseq: 肽 1 字母 GAVL 对得上实测分子量与分子式")
+def _():
+    r = cc.parse_bioseq("GAVL", kind="peptide")
+    eq(r["kind"], "peptide", "kind")
+    eq(r["format"], "sequence", "format")
+    eq(r["formula"], "C16H30N4O5", "分子式")
+    close(r["mw"], 358.4, 0.05, "mw")
+    eq(r["residues"], 4, "残基数")
+    eq(r["rdkit_flavor"], 0, "flavor")
+
+
+@case("bioseq: 肽 3 字母按 3 字母翻译（RDKit 其实不支持，不能给出 9 肽）")
+def _():
+    r = cc.parse_bioseq("Gly-Ala-Val", kind="peptide3")
+    eq(r["formula"], "C10H19N3O4", "三肽分子式")
+    close(r["mw"], 245.28, 0.05, "三肽分子量")
+    eq(r["residues"], 3, "残基数")
+    # 反例：RDKit 原生把 3 字母串当**大小写不敏感的单字母**读 —— "Gly-Ala-Val" 会变成
+    # G,L,Y,A,L,A,V,A,L 的 9 肽（C43H71N9O11 / MW 890.1）且不报错。我们必须给化学上
+    # 正确的三肽，绝不能把那个值当成"3 字母解析成功"。
+    true(abs(r["mw"] - 890.1) > 1.0, "不能把 3 字母串当 1 字母读出 9 肽")
+
+
+@case("bioseq: RNA 对得上实测值（flavor=2，无帽）")
+def _():
+    r = cc.parse_bioseq("AUGC", kind="rna")
+    eq(r["formula"], "C38H48N15O26P3", "分子式")
+    close(r["mw"], 1223.8, 0.05, "mw")
+    eq(r["rdkit_flavor"], 2, "flavor")
+
+
+@case("bioseq: DNA 用 flavor=6（不是 3 —— 3 是 RNA 5' 帽）")
+def _():
+    r = cc.parse_bioseq("ATGC", kind="dna")
+    eq(r["formula"], "C39H50N15O22P3", "分子式")
+    close(r["mw"], 1173.8, 0.05, "mw")
+    eq(r["rdkit_flavor"], 6, "DNA 的 flavor 必须是 6")
+    # 同一串 "ATGC" 在三个 kind 下必须是三个不同的分子 —— 这正是"不能猜"的硬理由
+    pep = cc.parse_bioseq("ATGC", kind="peptide")
+    rna = cc.parse_bioseq("ATGC", kind="rna")
+    eq(len({pep["smiles"], rna["smiles"], r["smiles"]}), 3, "三种类型应是三个不同分子")
+
+
+@case("bioseq: HELM 两种（PEPTIDE1 / RNA1）能解析且类型自证")
+def _():
+    p = cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")
+    eq(p["format"], "helm", "format")
+    eq(p["kind"], "helm", "kind")
+    eq(p["helm_class"], "PEPTIDE", "声明类型")
+    close(p["mw"], 358.4, 0.05, "肽 HELM")
+    r = cc.parse_bioseq("RNA1{R(A)P.R(U)P.R(G)}$$$$")
+    eq(r["helm_class"], "RNA", "声明类型")
+    close(r["mw"], 918.6, 0.05, "RNA HELM")
+    # auto 对 HELM 是**确定推断**（前缀自带类型），不是猜
+    eq(cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")["formula"], p["formula"], "auto 应走 HELM")
+
+
+@case("bioseq: 歧义保护 —— 裸序列 auto 必须报错，绝不默认当肽")
+def _():
+    for text in ("ATGC", "GAVL", "AUGC"):
+        try:
+            got = cc.parse_bioseq(text)
+            raise AssertionError(f"parse_bioseq({text!r}) 应当抛 ValueError，实际 kind={got.get('kind')}")
+        except ValueError as exc:
+            msg = str(exc)
+            true("无法判断" in msg, f"应说明无法判断类型：{msg[:60]}")
+            true("显式指定" in msg, f"应要求显式指定 kind：{msg[:60]}")
+
+
+@case("bioseq: 空串 / 非法字母 / 坏 kind 给人话错误")
+def _():
+    for bad in ("", "   "):
+        try:
+            cc.parse_bioseq(bad, kind="peptide")
+            raise AssertionError(f"{bad!r} 应当抛 ValueError")
+        except ValueError as exc:
+            true("输入为空" in str(exc), f"{bad!r}: {exc}")
+    try:
+        cc.parse_bioseq("GAVL", kind="protein")
+        raise AssertionError("坏 kind 应当抛 ValueError")
+    except ValueError as exc:
+        true("kind" in str(exc) and "protein" in str(exc), f"应说明 kind 非法：{exc}")
+    try:
+        cc.parse_bioseq("GAVL", kind="rna")
+        raise AssertionError("非法字母应当抛 ValueError")
+    except ValueError as exc:
+        true("非法字母" in str(exc), f"应指出非法字母：{exc}")
+
+
+@case("bioseq: HELM 缺 $$$$ / 语法坏 / 类型冲突都明确报错")
+def _():
+    try:
+        cc.parse_bioseq("PEPTIDE1{G.A.V.L}", kind="helm")
+        raise AssertionError("缺 $$$$ 应当抛 ValueError")
+    except ValueError as exc:
+        true("$$$$" in str(exc), f"应说明缺结束标记：{exc}")
+    try:
+        cc.parse_bioseq("PEPTIDE1{}}$$$$")
+        raise AssertionError("坏 HELM 应当抛 ValueError")
+    except ValueError as exc:
+        true("HELM" in str(exc), f"应说明 HELM 无法解析：{exc}")
+    try:
+        cc.parse_bioseq("RNA1{R(A)P}$$$$", kind="peptide")
+        raise AssertionError("HELM 声明与 kind 冲突应当抛 ValueError")
+    except ValueError as exc:
+        true("声明" in str(exc), f"应说明类型冲突：{exc}")
+
+
+@case("bioseq: 3 字母码非法/无法切分要报错，且不静默换读法")
+def _():
+    try:
+        cc.parse_bioseq("Gly-Xyz-Val", kind="peptide3")
+        raise AssertionError("未知 3 字母码应当抛 ValueError")
+    except ValueError as exc:
+        true("Xyz" in str(exc), f"应指出未知码：{exc}")
+    try:
+        cc.parse_bioseq("GAVL", kind="peptide3")
+        raise AssertionError("1 字母串按 peptide3 应当抛 ValueError")
+    except ValueError as exc:
+        true("3 的整数倍" in str(exc), f"应说明按 3 字切分失败：{exc}")
+    try:
+        cc.parse_bioseq("GAV", kind="peptide3")
+        raise AssertionError("把 1 字母串的 3 个字母当码应当抛 ValueError")
+    except ValueError as exc:
+        true("kind='peptide'" in str(exc), f"应提示改用 peptide：{exc}")
+    eq(cc.parse_bioseq("GlyAlaVal", kind="peptide3")["formula"],
+       cc.parse_bioseq("Gly-Ala-Val", kind="peptide3")["formula"], "两种写法应一致")
+
+
+@case("bioseq: 序列里的空白被规范化并记进 warnings（RDKit 会静默改分子）")
+def _():
+    r = cc.parse_bioseq("G A V L", kind="peptide")
+    eq(r["sequence"], "GAVL", "规范化序列")
+    eq(r["formula"], "C16H30N4O5", "去掉空白后分子式应正确")
+    true(any("空白" in w for w in r["warnings"]), f"应记录规范化动作：{r['warnings']}")
+    # 对照：RDKit 原生不把空格当分隔符，而会把它变成额外的氢（分子式就变了且不报错）
+
+
+@case("bioseq: 返回的 smiles 能被 properties / analyze 直接吃下（接得上工具链）")
+def _():
+    for value, kind in [("GAVL", "peptide"), ("AUGC", "rna"), ("ATGC", "dna"),
+                        ("PEPTIDE1{G.A.V.L}$$$$", "helm")]:
+        r = cc.parse_bioseq(value, kind=kind)
+        p = cc.properties(r["smiles"])
+        eq(p["formula"], r["formula"], f"{value} properties 分子式")
+        close(p["mw"], r["mw"], 0.01, f"{value} properties mw")
+        a = cc.analyze(r["smiles"])
+        eq(a["formula"], r["formula"], f"{value} analyze 分子式")
+        eq(a["canonical"], p["canonical"], f"{value} canonical 一致")
+
+
+@case("bioseq: 能力检测如实报告 RDKit 接口与 flavor 口径")
+def _():
+    caps = cc.bioseq_capabilities()
+    eq(caps["mol_from_sequence"], True, "MolFromSequence 可用")
+    eq(caps["mol_from_helm"], True, "MolFromHELM 可用")
+    eq(caps["sequence_flavors"], {"peptide": 0, "rna": 2, "dna": 6}, "flavor 口径")
+
+
+@case("bioseq: 英文报错可读且不出现中文")
+def _():
+    original = cc.current_lang()
+    try:
+        cc.set_lang("en")
+        try:
+            cc.parse_bioseq("ATGC")
+            raise AssertionError("应当抛 ValueError")
+        except ValueError as exc:
+            msg = str(exc)
+            true("Cannot tell" in msg, f"英文文案缺失：{msg[:80]}")
+            true(not any("\u4e00" <= ch <= "\u9fff" for ch in msg),
+                 f"英文模式下不应有中文：{msg[:80]}")
+    finally:
+        cc.set_lang(original)
 
 
 # ---------------------------------------------------------------- 汇总

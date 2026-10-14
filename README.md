@@ -14,7 +14,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [English](README.en.md) | 中文
@@ -165,7 +165,7 @@ export MOL_LANG=en        # zh（默认）/ en
 
 ---
 
-## 工具一览（12 个，全部纯本地）
+## 工具一览（13 个，全部纯本地）
 
 | 工具 | 作用 |
 |---|---|
@@ -176,6 +176,7 @@ export MOL_LANG=en        # zh（默认）/ en
 | `chem_draw_molecule` | 画结构图（PNG/SVG，可标原子编号、可高亮子结构），返回**文件路径** |
 | `chem_draw_grid` | 多分子拼图（汇报/论文附图），坏条目跳过但逐条记录 |
 | `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula 互转 |
+| `chem_bioseq` | 肽 / 核酸序列或 HELM → 分子（给出规范 SMILES，可续接其它工具）；**kind 必须显式指定** |
 | `chem_standardize` | 去盐 / 去金属 / 中和 / 规范化，**逐步记录改了什么** |
 | `chem_dedupe` | 按规范化结构去重，给出重复分组 |
 | `chem_substructure_match` | SMARTS 子结构匹配，返回原子索引 |
@@ -186,6 +187,40 @@ export MOL_LANG=en        # zh（默认）/ en
 
 > `chem_core` 还有一个 `python3 -m chemcore.cli` 的 JSON 入口（一行 JSON 进、一行 JSON 出），
 > 工作台的即时数字就是走它。这是"给 AI 的工具"和"给人的界面"共用一份实现的接缝。
+
+## 大分子（肽 / 核酸）怎么处理
+
+Ketcher 的大分子编辑器画出来的肽 / 核酸**没有 SMILES**，只有序列或 HELM。`chem_bioseq`
+把它们解析成分子，并返回一个**规范 SMILES** —— 于是上面所有工具（properties / analyze /
+draw / convert）都能接着用同一个分子算下去。
+
+```python
+cc.parse_bioseq("GAVL", kind="peptide")            # 肽，1 字母码 → C16H30N4O5 / 358.4
+cc.parse_bioseq("Gly-Ala-Val", kind="peptide3")    # 肽，3 字母码 → 三肽 C10H19N3O4 / 245.3
+cc.parse_bioseq("AUGC", kind="rna")                # RNA → C38H48N15O26P3 / 1223.8
+cc.parse_bioseq("ATGC", kind="dna")                # DNA → C39H50N15O22P3 / 1173.8
+cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM：前缀自带类型，auto 即可
+```
+
+### 为什么要显式给 `kind`
+
+因为 `A/T/G/C` **既是氨基酸字母也是碱基字母**（Ala/Thr/Gly/Cys ↔ 腺嘌呤/胸腺嘧啶/鸟嘌呤/胞嘧啶）。
+同一段 `ATGC` 按肽算是 `C12H22N4O6S`、按 RNA 算是 `C39H50N15O26P3`、按 DNA 算是
+`C39H50N15O22P3` —— 三个完全不同的分子，而 RDKit 的 `MolFromSequence` **默认只按肽解析、
+不报任何错**。
+
+所以本工具的规矩是：
+
+- **裸序列必须显式指定 `kind`**（`auto` 也要求），否则直接报错 ——
+  「无法判断 … 是肽还是核酸，已拒绝解析」。**绝不替调用方选默认值**：
+  选错是"化学上完全错误且没有任何迹象"，比报错危险得多。
+- 只有 **HELM** 能在 `auto` 下确定推断：它的 `PEPTIDE1{` / `RNA1{` / `DNA1{` 前缀是**声明**，不是猜。
+
+> 两个相关的 RDKit 坑（都实测过，本项目都绕开了）：**DNA 的 flavor 是 6 不是 3**
+> （3 是"给 RNA 加 5' 磷酸帽"，会多接一个磷酸）；而 **3 字母氨基酸码 RDKit 2023.09.6
+> 根本不支持** —— 它会把 `Gly-Ala-Val` 按大小写不敏感的单字母读成 9 肽（MW 890.1）且
+> 不报错，所以 `peptide3` 由本层自己翻译成 1 字母码再算。序列里的空白也会被 RDKit
+> 悄悄变成额外的氢，本层先规范化并把这次改动记进 `warnings`。
 
 ## Python API
 
@@ -198,6 +233,7 @@ cc.analyze("CC(=O)Oc1ccccc1C(=O)O")       # + QED / Lipinski / PAINS 警报 / Mu
 cc.draw("CCO", atom_indices=True)         # {'path': '…/CCO.png', …}
 cc.standardize("CC(=O)[O-].[Na+]")        # {'output': 'CC(=O)O', 'changes': [...]}
 cc.batch_clean(["CCO", "C1CC"])           # {'ok': 1, 'failed': 1, 'failed_items': [...]}
+cc.parse_bioseq("GAVL", kind="peptide")   # 肽/核酸/HELM → 分子 + 规范 SMILES（kind 必填）
 ```
 
 ## 实例：清洗一张"脏"的单体表
@@ -229,7 +265,7 @@ python3 examples/monomer_cleanup.py
 ## 测试
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 52 个核心用例（零依赖，不需要 pytest）
+PYTHONPATH=src python3 tests/run_tests.py    # 65 个核心用例（零依赖，不需要 pytest）
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 协议级冒烟（真起服务、真调工具）
 bash tests/run_all.sh                        # 上面两件 + 自测，一把梭
 ```
@@ -258,7 +294,7 @@ node dsh-ui/tests/verify-ui.cjs
 
 ## 路线图
 
-- **v0.1（当前）**：12 个纯本地工具 + 化学工作台（画板 / 分析 / 逆合成框架）
+- **v0.1（当前）**：13 个纯本地工具 + 化学工作台（画板 / 分析 / 逆合成框架）
 - **v0.2**：逆合成后端真正跑通（Retro* 数据就位）+ 工作台里直接看路线图
 - **v0.3**：更多分析卡片（pKa / 构象 / 药代性质），可视化升级为"结构 + 图表"
 - **未定**：图像→结构识别（OCSR）需要数百 MB 模型，**不属于"基础轻工具"**，会做成可插拔后端
@@ -269,6 +305,11 @@ node dsh-ui/tests/verify-ui.cjs
 - 结构警报**不等于**"有毒"：它只是"这类子结构值得人工看一眼"。
 - 这里**没有**图像识别、名称→结构（OPSIN 之类）。
 - SMARTS 匹配是结构匹配，**不等于**化学反应性判断。
+- **大分子只覆盖标准单体**：`peptide3` 只认 20 种标准氨基酸的三字母码；修饰残基、非天然
+  单体、糖链等在 RDKit 这一层没有可靠支持。另外实测 RDKit 2023.09.6 的 HELM 解析
+  **不支持 `DNA1` 与 `CHEM1`**（直接返回 None），碰到时我们明确报错，而不是给个空结果。
+- **序列类型必须由你指定**：`A/T/G/C` 在肽与核酸里都合法，裸序列有歧义时我们**拒绝解析**，
+  不提供默认值（详见上面「大分子」一节）。
 - **InChI 不支持 `*` 虚原子**：聚合物 RU-SMILES（如 `*OCCOC(=O)c1ccc(C(=O)O*)cc1`）**转不了** InChI / InChIKey。
   我们**不会静默返回空串**（RDKit 会），而是明确报错并建议用 canonical SMILES 做唯一标识 ——
   因为这个领域最常见的输入正好就是带 `*` 的。
@@ -278,7 +319,7 @@ node dsh-ui/tests/verify-ui.cjs
 
 ```
 src/chemcore/          纯 RDKit 核心（唯一的事实来源）+ JSON CLI 入口
-src/dsh_mol_mcp/       stdio MCP 适配层（12 个工具）
+src/dsh_mol_mcp/       stdio MCP 适配层（13 个工具）
 dsh-ui/                化学工作台（DSH 客户端插件：宿主半边 + 浏览器半边）
 dsh-ui/retro/          逆合成后端桥接（可插拔，默认 Retro*）
 dsh-bundle/            DSH 组合包（只贡献配置，指向上面的 MCP 服务）

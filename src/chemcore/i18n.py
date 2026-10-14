@@ -128,6 +128,70 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_mol_parse_labeled": "分子 {0} 的 SMILES 无法解析：{1}",
         "err_query_parse": "查询 SMILES 无法解析：{0}",
         "err_csv_column": "CSV 里没有列 {0}；现有列：{1}",
+        # —— 生物大分子（肽 / 核酸）——
+        # 核心一条是 bioseq_ambiguous：裸序列有歧义时**拒绝解析并要求显式指定 kind**，
+        # 因为 RDKit 会静默按肽解析出一个分子式完全不同的分子（见 bioseq 模块 docstring）。
+        "bioseq_empty": "输入为空：没有可解析的序列或 HELM 内容",
+        "bioseq_bad_kind": (
+            "kind 只能是 {0} 之一，收到 {1}。裸序列本身不带类型信息，必须由你显式指定。"
+        ),
+        "bioseq_ambiguous": (
+            "无法判断「{0}」是肽还是核酸，已拒绝解析：A/T/G/C 这几个字母既是氨基酸"
+            "（Ala/Thr/Gly/Cys）也是碱基（腺嘌呤/胸腺嘧啶/鸟嘌呤/胞嘧啶），而 RDKit 的 "
+            "MolFromSequence 默认只按肽解析、**不会报错** —— 同一个串按肽 / RNA / DNA 算出来是"
+            "分子式完全不同的三个分子，选错了没有任何迹象。请显式指定 kind：peptide"
+            "（1 字母氨基酸）/ peptide3（3 字母氨基酸）/ rna / dna；HELM 字符串"
+            "（以 PEPTIDE1 / RNA1 / DNA1 前缀开头）自带类型，也可以直接传。"
+        ),
+        "bioseq_rdkit_unsupported": (
+            "当前 RDKit（{0}）没有 {1} 接口，无法解析生物大分子序列。"
+            "MolFromSequence / MolFromHELM 需要 RDKit ≥ 2022.09；请升级：pip install -U rdkit"
+        ),
+        "bioseq_normalized": (
+            "输入里的空白/连字符按分隔符移除了：{0} → {1}"
+            "（RDKit 不把空格当分隔符，而会把它变成额外的氢）"
+        ),
+        "bioseq_bad_letters": (
+            "{0} 序列里出现非法字母「{1}」：{0} 只接受 {2}。"
+            "如果这串其实属于另一类生物大分子，请改 kind（同一串字母在肽与核酸里含义不同）。"
+        ),
+        "bioseq_seq_unparsable": (
+            "{0} 序列无法解析：{1}（RDKit 只返回 None、不给原因；该类型的合法字母是 {2}）"
+        ),
+        "bioseq_rna_has_t": (
+            "rna 序列里出现了 DNA 碱基 T：RDKit 会照它算出核糖核苷酸，"
+            "请确认不是把 DNA 写成了 RNA"
+        ),
+        "bioseq_dna_has_u": (
+            "dna 序列里出现了 RNA 碱基 U：RDKit 会照它算出脱氧核苷酸，"
+            "请确认不是把 RNA 写成了 DNA"
+        ),
+        "bioseq_peptide3_unknown": (
+            "3 字母氨基酸码无法识别：「{0}」。标准氨基酸码只有这 20 个：{1}。"
+            "如果你手上其实是 1 字母序列（如 GAVL），请改用 kind='peptide'"
+        ),
+        "bioseq_peptide3_malformed": (
+            "3 字母氨基酸序列无法切分：{0}。去掉分隔符后长度应是 3 的整数倍，"
+            "例如 Gly-Ala-Val 或 GlyAlaVal"
+        ),
+        "bioseq_helm_unterminated": (
+            "HELM 字符串缺少结束标记 $$$$（连接层结束符）：{0}。"
+            "RDKit 对这种缺失很宽容、会照常解析，但那说明文本可能已被截断 —— "
+            "截断后它仍可能给出一个更短的分子且毫无提示，所以我们主动拦住。请补全 $$$$。"
+        ),
+        "bioseq_helm_unparsable": (
+            "HELM 字符串无法解析：{0}。RDKit 没有给出原因（只返回 None）。"
+            "常见原因：单体名拼写错误、分隔符（. / | / 括号）不配对，"
+            "或用了当前 RDKit 不支持的 HELM 单体（实测 2023.09.6 解析不了 DNA1 与 CHEM1）。"
+        ),
+        "bioseq_helm_kind_mismatch": (
+            "输入是 HELM 字符串、它自己声明为 {0}，但你指定了 kind={1}。"
+            "HELM 的类型由前缀确定（PEPTIDE1 / RNA1 / DNA1 / CHEM1），本工具不去猜；"
+            "请改用 kind='helm'（或 kind='auto'），或改成与声明一致的 kind。"
+        ),
+        "bioseq_not_helm": (
+            "kind='helm' 要求输入以 PEPTIDE1 / RNA1 / DNA1 / CHEM1 前缀开头，收到：{0}"
+        ),
         "warn_no_cjk_font": (
             "图注含中文，但系统找不到可用的中文字体 → 图里将没有图注。"
             "请安装中文字体（如 fonts-noto-cjk），或改用 ASCII 图注。"
@@ -198,6 +262,76 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_mol_parse_labeled": "Cannot parse SMILES of molecule {0}: {1}",
         "err_query_parse": "Cannot parse the query SMILES: {0}",
         "err_csv_column": "CSV has no column {0}; available columns: {1}",
+        # —— biomolecules (peptides / nucleic acids) ——
+        "bioseq_empty": "Empty input: no sequence or HELM content to parse",
+        "bioseq_bad_kind": (
+            "kind must be one of {0}, got {1}. A bare sequence carries no type information, "
+            "so the type has to be given explicitly."
+        ),
+        "bioseq_ambiguous": (
+            "Cannot tell whether \"{0}\" is a peptide or a nucleic acid, so parsing was refused: "
+            "A/T/G/C are valid both as amino acids (Ala/Thr/Gly/Cys) and as bases "
+            "(adenine/thymine/guanine/cytosine), and RDKit's MolFromSequence defaults to reading "
+            "the string as a peptide **without raising any error** — the same string yields three "
+            "different molecular formulas as peptide / RNA / DNA, and a wrong choice leaves no "
+            "trace. Pass an explicit kind: peptide (1-letter amino acids) / peptide3 (3-letter "
+            "amino acids) / rna / dna. A HELM string (starting with the PEPTIDE1 / RNA1 / DNA1 "
+            "prefix) declares its own type and may be passed directly."
+        ),
+        "bioseq_rdkit_unsupported": (
+            "This RDKit ({0}) has no {1} entry point, so biological sequences cannot be parsed. "
+            "MolFromSequence / MolFromHELM require RDKit >= 2022.09; upgrade with: pip install -U rdkit"
+        ),
+        "bioseq_normalized": (
+            "Whitespace/hyphens in the input were removed as separators: {0} -> {1} "
+            "(RDKit does not treat a space as a separator; it turns it into extra hydrogens)"
+        ),
+        "bioseq_bad_letters": (
+            "Illegal letter(s) \"{1}\" in a {0} sequence: {0} accepts only {2}. "
+            "If the string actually belongs to the other kind of biomolecule, change kind "
+            "(the same letters mean different things in peptides and nucleic acids)."
+        ),
+        "bioseq_seq_unparsable": (
+            "Cannot parse the {0} sequence {1} (RDKit returns None without a reason; the legal "
+            "letters for this type are {2})"
+        ),
+        "bioseq_rna_has_t": (
+            "The rna sequence contains the DNA base T: RDKit will build a ribonucleotide from it "
+            "— confirm this is not DNA written as RNA"
+        ),
+        "bioseq_dna_has_u": (
+            "The dna sequence contains the RNA base U: RDKit will build a deoxyribonucleotide "
+            "from it — confirm this is not RNA written as DNA"
+        ),
+        "bioseq_peptide3_unknown": (
+            "Unknown 3-letter amino-acid code: \"{0}\". Only these 20 standard codes exist: {1}. "
+            "If you actually have a 1-letter sequence (e.g. GAVL), use kind='peptide'"
+        ),
+        "bioseq_peptide3_malformed": (
+            "Cannot split this 3-letter amino-acid sequence: {0}. After removing separators the "
+            "length must be a multiple of 3, e.g. Gly-Ala-Val or GlyAlaVal"
+        ),
+        "bioseq_helm_unterminated": (
+            "The HELM string is missing its terminator $$$$ (end of the connection layer): {0}. "
+            "RDKit happily parses such a string, but a missing terminator means the text may be "
+            "truncated — and a truncated string can still yield a shorter molecule with no "
+            "warning — so we block it here. Please append the full $$$$."
+        ),
+        "bioseq_helm_unparsable": (
+            "Cannot parse this HELM string: {0}. RDKit gives no reason (it only returns None). "
+            "Common causes: a misspelled monomer name, unbalanced separators (. / | / brackets), "
+            "or a monomer this RDKit does not support (as measured, 2023.09.6 cannot parse DNA1 "
+            "or CHEM1)."
+        ),
+        "bioseq_helm_kind_mismatch": (
+            "The input is a HELM string that declares itself as {0}, but you passed kind={1}. "
+            "A HELM type comes from its prefix (PEPTIDE1 / RNA1 / DNA1 / CHEM1) and is never "
+            "guessed; use kind='helm' (or kind='auto'), or pass a kind that matches the declaration."
+        ),
+        "bioseq_not_helm": (
+            "kind='helm' requires the input to start with the PEPTIDE1 / RNA1 / DNA1 / CHEM1 "
+            "prefix, got: {0}"
+        ),
         "warn_no_cjk_font": (
             "Legends contain CJK characters but no CJK font was found → the image will have no "
             "legends. Install a CJK font (e.g. fonts-noto-cjk) or use ASCII legends."

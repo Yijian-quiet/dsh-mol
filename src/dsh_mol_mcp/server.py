@@ -281,11 +281,42 @@ def chem_batch_clean(smiles_list: list[str], out_csv: str = "") -> dict[str, Any
     return cc.batch_clean(smiles_list, out_csv=out_csv or None)
 
 
+@mcp.tool(title="Parse biological sequence", annotations=READ_ONLY)
+def chem_bioseq(value: str, kind: str = "auto") -> dict[str, Any]:
+    """Parse a peptide / nucleic-acid sequence or a HELM string into a molecule, and return a
+    canonical SMILES that every other tool here (properties / analyze / draw / convert) can use.
+
+    `kind` is one of auto / peptide / peptide3 / rna / dna / helm, and **for a bare sequence it
+    must be given explicitly**: A/T/G/C are valid both as amino acids (Ala/Thr/Gly/Cys) and as
+    bases (adenine/thymine/guanine/cytosine), and RDKit silently reads such a string as a peptide
+    without raising any error — the same text is three different molecules under peptide / RNA /
+    DNA. `auto` therefore only infers HELM (whose PEPTIDE1 / RNA1 / DNA1 prefix declares the type)
+    and raises a clear error for an untyped bare sequence. `peptide3` means 3-letter amino-acid
+    codes (Gly-Ala-Val); RDKit does not actually support them, so this layer translates them.
+
+    把肽 / 核酸序列或 HELM 字符串解析成分子，并给出规范 SMILES（本项目的其它工具都能接着用）。
+    kind 取 auto / peptide / peptide3 / rna / dna / helm，且**裸序列必须显式指定**：
+    A/T/G/C 既是氨基酸字母（Ala/Thr/Gly/Cys）也是碱基字母（腺嘌呤/胸腺嘧啶/鸟嘌呤/胞嘧啶），
+    RDKit 会把这种串静默当成肽、不报任何错 —— 同一段文本在 peptide / RNA / DNA 下是三个不同的
+    分子。因此 auto 只推断 HELM（它的 PEPTIDE1 / RNA1 / DNA1 前缀自带类型），遇到没有类型的裸
+    序列会明确报错。peptide3 指 3 字母氨基酸码（Gly-Ala-Val）；RDKit 其实不支持，由本层自行翻译。"""
+    return cc.parse_bioseq(value, kind=kind)
+
+
 # --------------------------------------------------------------------------
 # 自测：不依赖任何 MCP 客户端，直接调用底层函数
 # --------------------------------------------------------------------------
 def _selftest() -> int:
     aspirin = "CC(=O)Oc1ccccc1C(=O)O"
+
+    def _bioseq_refuses_to_guess() -> bool:
+        """裸序列必须报错要求显式指定 kind，而不是默认当肽。"""
+        try:
+            cc.parse_bioseq("ATGC")
+        except ValueError:
+            return True
+        return False
+
     checks = [
         ("校验正常分子", lambda: cc.check(aspirin).level == "ok"),
         ("拦住空串", lambda: cc.check("").level == "error"),
@@ -298,6 +329,8 @@ def _selftest() -> int:
         ("子结构", lambda: cc.substructure_match(aspirin, "c1ccccc1")["matched"]),
         ("相似度自比=1", lambda: cc.similarity(aspirin, aspirin)["score"] == 1.0),
         ("批量清洗", lambda: cc.batch_clean([aspirin, "C1CC"])["failed"] == 1),
+        ("大分子：肽序列", lambda: abs(cc.parse_bioseq("GAVL", kind="peptide")["mw"] - 358.44) < 0.05),
+        ("大分子：裸序列拒绝猜类型", _bioseq_refuses_to_guess),
     ]
     bad = 0
     for name, fn in checks:

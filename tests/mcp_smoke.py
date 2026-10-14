@@ -24,7 +24,7 @@ SRC = os.path.join(ROOT, "src")
 EXPECTED_TOOLS = {
     "chem_check_smiles", "chem_properties", "chem_draw_molecule", "chem_draw_grid",
     "chem_convert", "chem_standardize", "chem_dedupe", "chem_substructure_match",
-    "chem_similarity", "chem_batch_clean",
+    "chem_similarity", "chem_batch_clean", "chem_bioseq",
 }
 
 
@@ -103,6 +103,23 @@ async def main() -> int:
             except Exception as exc:  # noqa: BLE001
                 print(f"  非法输入 -> 客户端收到异常：{type(exc).__name__}: {exc}")
                 failures.append(f"非法输入导致协议级异常（应为工具错误）：{exc}")
+
+            # 5) 大分子：显式 kind 解析成功，且返回的 smiles 能续接 properties
+            r = _payload(await session.call_tool("chem_bioseq",
+                                                 {"value": "GAVL", "kind": "peptide"}))
+            print(f"  bioseq(GAVL, peptide) -> formula={r.get('formula')} mw={r.get('mw')}")
+            if r.get("formula") != "C16H30N4O5":
+                failures.append(f"bioseq 肽解析结果异常：{r}")
+            r2 = _payload(await session.call_tool("chem_properties",
+                                                  {"smiles": r.get("smiles", "")}))
+            if r2.get("formula") != "C16H30N4O5":
+                failures.append(f"bioseq 的 smiles 接不上 properties：{r2}")
+
+            # 6) 歧义保护：裸序列不指定 kind 必须是工具错误，而不是默认当肽
+            res = await session.call_tool("chem_bioseq", {"value": "ATGC"})
+            print(f"  bioseq(ATGC, auto) -> isError={res.isError}")
+            if not res.isError:
+                failures.append("裸序列没指定 kind 却没有报错（会静默算错分子）")
 
     if failures:
         print("\n失败：")

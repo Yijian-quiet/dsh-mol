@@ -13,6 +13,7 @@
     analyze / druglikeness        —— 类药性、结构警报、骨架
     draw / draw_grid              —— 画分子
     convert / convert_many        —— 格式互转
+    parse_bioseq / bioseq_capabilities —— 肽 / 核酸序列与 HELM（大分子入口）
     standardize / dedupe          —— 结构标准化与去重
     substructure_match / similarity —— 子结构匹配与相似度
     batch_clean / read_smiles_column —— 批量清洗
@@ -27,6 +28,7 @@
 
 from .analyze import DEFAULT_CATALOGS as DEFAULT_ALERT_CATALOGS, analyze, druglikeness
 from .batch import batch_clean, read_smiles_column
+from .bioseq import bioseq_capabilities, parse_bioseq
 from .convert import FORMATS, convert, convert_many, sniff
 from .draw import draw, draw_grid, out_dir
 from .i18n import DEFAULT_LANG, SUPPORTED as SUPPORTED_LANGS, current_lang, set_lang, t
@@ -42,6 +44,7 @@ __all__ = [
     "properties", "analyze", "druglikeness", "DEFAULT_ALERT_CATALOGS",
     "draw", "draw_grid", "out_dir",
     "convert", "convert_many", "sniff", "FORMATS",
+    "parse_bioseq", "bioseq_capabilities",
     "standardize", "dedupe",
     "substructure_match", "similarity", "find_similar",
     "batch_clean", "read_smiles_column",

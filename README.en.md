@@ -14,7 +14,7 @@ Pure RDKit. **No network, no API key, no external service.** Also usable as a st
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-65%20passed-brightgreen)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | English
@@ -165,7 +165,7 @@ export MOL_LANG=en        # zh (default) / en
 
 ---
 
-## Tools (12, all local-only)
+## Tools (13, all local-only)
 
 | Tool | Purpose |
 |---|---|
@@ -176,6 +176,7 @@ export MOL_LANG=en        # zh (default) / en
 | `chem_draw_molecule` | render a structure (PNG/SVG, optional atom indices, substructure highlight) → returns a **file path** |
 | `chem_draw_grid` | multi-molecule grid (for reports/papers); bad entries skipped but recorded one by one |
 | `chem_convert` | smiles / inchi / inchikey / mol / sdf / formula conversion |
+| `chem_bioseq` | peptide / nucleic-acid sequence or HELM → a molecule (and a canonical SMILES the other tools can consume); **kind must be given explicitly** |
 | `chem_standardize` | strip salts / disconnect metals / neutralize / normalize — **recording every change** |
 | `chem_dedupe` | deduplicate by canonical structure, with duplicate groups |
 | `chem_substructure_match` | SMARTS substructure matching, returns atom indices |
@@ -186,6 +187,43 @@ The workbench's "Analyze" tab and these tools **share the same `chemcore`** — 
 
 > `chem_core` also has a `python3 -m chemcore.cli` JSON entry point (one JSON line in, one JSON line out);
 > the workbench's live numbers go through it. That is the seam where "tools for the AI" and "a UI for people" share one implementation.
+
+## Biomolecules (peptides / nucleic acids)
+
+Peptides and nucleic acids drawn in Ketcher's macromolecule editor **have no SMILES** — only a
+sequence or HELM. `chem_bioseq` turns them into a molecule and hands back a **canonical SMILES**,
+so every tool above (properties / analyze / draw / convert) keeps working on the same molecule.
+
+```python
+cc.parse_bioseq("GAVL", kind="peptide")            # peptide, 1-letter → C16H30N4O5 / 358.4
+cc.parse_bioseq("Gly-Ala-Val", kind="peptide3")    # peptide, 3-letter → tripeptide C10H19N3O4 / 245.3
+cc.parse_bioseq("AUGC", kind="rna")                # RNA → C38H48N15O26P3 / 1223.8
+cc.parse_bioseq("ATGC", kind="dna")                # DNA → C39H50N15O22P3 / 1173.8
+cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM: the prefix declares the type, auto is fine
+```
+
+### Why `kind` has to be explicit
+
+Because `A/T/G/C` are **valid both as amino acids and as bases**
+(Ala/Thr/Gly/Cys ↔ adenine/thymine/guanine/cytosine). The same `ATGC` is `C12H22N4O6S` as a
+peptide, `C39H50N15O26P3` as RNA and `C39H50N15O22P3` as DNA — three different molecules —
+while RDKit's `MolFromSequence` **defaults to reading it as a peptide without any error**.
+
+So the rule here is:
+
+- **A bare sequence must carry an explicit `kind`** (even with `auto`); otherwise it errors out —
+  "Cannot tell whether … is a peptide or a nucleic acid, so parsing was refused".
+  **We never pick a default for you**: a wrong choice is "chemically completely wrong with no
+  trace at all", which is more dangerous than an error.
+- Only **HELM** can be inferred under `auto`: its `PEPTIDE1{` / `RNA1{` / `DNA1{` prefix is a
+  **declaration**, not a guess.
+
+> Two RDKit traps we measured and work around: **DNA is flavor 6, not 3**
+> (3 means "RNA with a 5' phosphate cap" and adds an extra phosphate); and **3-letter amino-acid
+> codes are not supported at all in RDKit 2023.09.6** — it reads `Gly-Ala-Val` as
+> case-insensitive single letters, giving a 9-mer (MW 890.1) with no error, so `peptide3` is
+> translated into 1-letter codes right here. Whitespace inside a sequence is also silently turned
+> into extra hydrogens by RDKit; we normalize it first and record the change in `warnings`.
 
 ## Python API
 
@@ -198,6 +236,7 @@ cc.analyze("CC(=O)Oc1ccccc1C(=O)O")       # + QED / Lipinski / PAINS alerts / Mu
 cc.draw("CCO", atom_indices=True)         # {'path': '…/CCO.png', …}
 cc.standardize("CC(=O)[O-].[Na+]")        # {'output': 'CC(=O)O', 'changes': [...]}
 cc.batch_clean(["CCO", "C1CC"])           # {'ok': 1, 'failed': 1, 'failed_items': [...]}
+cc.parse_bioseq("GAVL", kind="peptide")   # peptide/RNA/DNA/HELM → molecule + canonical SMILES
 ```
 
 ## Worked example: cleaning a dirty monomer table
@@ -229,7 +268,7 @@ Installing Retro* (source + model data, GB-scale) is covered in **[docs/RETROSYN
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 52 core cases (zero deps, no pytest needed)
+PYTHONPATH=src python3 tests/run_tests.py    # 65 core cases (zero deps, no pytest needed)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real server, real tool calls)
 bash tests/run_all.sh                        # the two above plus self-checks, in one shot
 ```
@@ -258,7 +297,7 @@ node dsh-ui/tests/verify-ui.cjs
 
 ## Roadmap
 
-- **v0.1 (current)**: 12 local-only tools + the chemistry workbench (canvas / analyze / retrosynthesis framework)
+- **v0.1 (current)**: 13 local-only tools + the chemistry workbench (canvas / analyze / retrosynthesis framework)
 - **v0.2**: retrosynthesis backend running end to end (Retro* data in place) + view routes inside the workbench
 - **v0.3**: more analysis cards (pKa / conformers / PK properties), visualization upgraded to "structure + charts"
 - **Undecided**: image → structure (OCSR) needs a several-hundred-MB model, so it is **not a "light basic tool"** and will ship as a pluggable backend
@@ -269,6 +308,13 @@ node dsh-ui/tests/verify-ui.cjs
 - A structural alert **does not mean** "toxic": it only means "this kind of substructure deserves a human look".
 - There is **no** image recognition and **no** name → structure (OPSIN and the like).
 - SMARTS matching is structural matching, **not** a reactivity judgement.
+- **Biomolecules cover standard monomers only**: `peptide3` knows the 20 standard three-letter
+  amino-acid codes; modified residues, non-natural monomers and glycans have no reliable support
+  at the RDKit layer. As measured, HELM parsing in RDKit 2023.09.6 **does not support `DNA1` or
+  `CHEM1`** (it returns None); when that happens we raise a clear error instead of returning an
+  empty result.
+- **You must state the sequence type**: `A/T/G/C` are legal in both peptides and nucleic acids, so
+  an ambiguous bare sequence is **refused** rather than defaulted (see the "Biomolecules" section).
 - **InChI does not support the `*` dummy atom**: polymer RU-SMILES (e.g. `*OCCOC(=O)c1ccc(C(=O)O*)cc1`) **cannot** be converted to InChI / InChIKey.
   We **do not silently return an empty string** (RDKit does); we raise a clear error and suggest canonical SMILES as the unique identifier —
   because the most common input in this field is exactly the one carrying `*`.
@@ -278,7 +324,7 @@ node dsh-ui/tests/verify-ui.cjs
 
 ```
 src/chemcore/          pure RDKit core (single source of truth) + JSON CLI entry
-src/dsh_mol_mcp/       stdio MCP adapter (12 tools)
+src/dsh_mol_mcp/       stdio MCP adapter (13 tools)
 dsh-ui/                chemistry workbench (DSH client plugin: host half + browser half)
 dsh-ui/retro/          retrosynthesis backend bridge (pluggable, Retro* by default)
 dsh-bundle/            DSH bundle (configuration only, pointing at the MCP server above)
