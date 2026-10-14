@@ -64,7 +64,7 @@ from .i18n import t
 # --------------------------------------------------------------------------
 
 #: 允许的 ``kind``：``auto`` 只在能确定时推断（HELM 前缀），否则报错要求显式指定。
-KINDS = ("auto", "peptide", "peptide3", "rna", "dna", "helm")
+KINDS = ("auto", "peptide", "peptide3", "rna", "dna", "helm", "idt")
 
 #: 序列类 kind（不含 auto / helm）。
 SEQUENCE_KINDS = ("peptide", "peptide3", "rna", "dna")
@@ -112,6 +112,22 @@ _KIND_TO_HELM_CLASS = {"peptide": "PEPTIDE", "peptide3": "PEPTIDE", "rna": "RNA"
 #: 只去这两个 —— 实测 RDKit 自己忽略 ``-``，但**不**忽略空格（空格会改变分子式），
 #: 而 ``.`` 之类的字符在 RDKit 眼里是有效但不同的东西，绝不能当分隔符吞掉。
 _SEQ_SEPARATORS = re.compile(r"[\s\-]+")
+
+#: IDT（Integrated DNA Technologies）记法。
+#:
+#: 为什么单拎出来：Ketcher 大分子编辑器导出核酸时给的**就是 IDT 记法**
+#: （实测用户画 RNA 得到 ``rArCrGrTrU/3Phos/``），而它不是纯序列 ——
+#: 残基带糖型前缀（``r``=核糖、``d``=脱氧、``m``=2'-O-甲基、``+``=LNA），
+#: 还有 ``/3Phos/`` 这类末端修饰。RDKit 的 ``MolFromSequence`` 只认纯字母序列，
+#: 所以必须**先翻译、再对账**，不能直接喂给它（否则会被当成非法字母，报出
+#: 一串毫无意义的字符）。
+#:
+#: 支持的判据（保守）：出现 ``/xxx/`` 修饰，或出现带糖型前缀的残基。
+_IDT_MODIFIER_RE = re.compile(r"/[A-Za-z0-9]+/")
+_IDT_RESIDUE_RE = re.compile(r"(\+|r|d|m)?([ACGTU])(\*?)")
+#: IDT 糖型前缀 → 说明（用于报错时说清"这串里有什么 RDKit 表达不了的东西"）
+_IDT_SUGAR_ZH = {"r": "核糖 r", "d": "脱氧 d", "m": "2'-O-甲基 m", "+": "LNA +"}
+
 
 
 # --------------------------------------------------------------------------
@@ -263,6 +279,75 @@ def _finish(mol, *, kind: str, requested_kind: str, fmt: str, api: str,
     }
 
 
+def _looks_like_idt(text: str) -> bool:
+    """是不是 IDT 记法。
+
+    判据保守：**必须**有 ``/…/`` 修饰，或者有带糖型前缀的残基（``rA``/``dC``/``mA``/``+G``）。
+    纯 ``ACGU`` 不算 —— 那是普通序列，有它自己的路径。
+    """
+    s = text.strip()
+    if _IDT_MODIFIER_RE.search(s):
+        return True
+    return any(res.group(1) for res in _IDT_RESIDUE_RE.finditer(s))
+
+
+def _parse_idt(text: str, requested_kind: str) -> dict[str, Any]:
+    """IDT 记法 → 纯序列 → 分子。
+
+    **只在无损时才转换**，否则报错说明原因：
+
+    - 末端/骨架修饰（``/3Phos/``、``/5Phos/``、``*`` 硫代磷酸…）→ 拒绝。
+      RDKit 的序列解析器表达不了它们；硬转会**静默少掉一个磷酸（≈79.97 Da）**，
+      得到一个分子量对不上、却看不出错的分子。
+    - 糖型不统一（``rA`` 混 ``dC``）或非标准糖（``m``/``+``）→ 拒绝，同上。
+    - 全是 ``r`` → RNA；全是 ``d`` 或无前缀 → DNA。这两种 RDKit 能**无损**表达
+      （已实测：flavor=2 里的 ``T`` 给的是核糖胸苷，带 2'-OH，不是脱氧）。
+    """
+    s = text.strip()
+    modifiers = _IDT_MODIFIER_RE.findall(s)
+    if modifiers:
+        raise ValueError(t("bioseq_idt_modifier", " ".join(modifiers), _clip(text)))
+
+    body = _IDT_MODIFIER_RE.sub("", s)
+    residues = []
+    pos = 0
+    for m in _IDT_RESIDUE_RE.finditer(body):
+        if m.start() != pos:
+            raise ValueError(t("bioseq_idt_unparsed", _clip(body[pos:], 20), _clip(text)))
+        sugar, base, star = m.group(1) or "", m.group(2), m.group(3)
+        if star:
+            raise ValueError(t("bioseq_idt_backbone", _clip(text)))
+        residues.append((sugar, base))
+        pos = m.end()
+    if pos != len(body) or not residues:
+        raise ValueError(t("bioseq_idt_unparsed", _clip(body[pos:], 20), _clip(text)))
+
+    sugars = {sugar for sugar, _ in residues}
+    unsupported = sorted(sugars & {"m", "+"})
+    if unsupported:
+        names = "、".join(_IDT_SUGAR_ZH.get(x, x) for x in unsupported)
+        raise ValueError(t("bioseq_idt_sugar_unsupported", names, _clip(text)))
+    if len(sugars) > 1:
+        raise ValueError(t("bioseq_idt_mixed_sugar",
+                           "、".join(_IDT_SUGAR_ZH.get(x, "无前缀") for x in sorted(sugars)),
+                           _clip(text)))
+
+    sugar = next(iter(sugars)) if sugars else ""
+    deduced = "rna" if sugar == "r" else "dna"
+
+    # 调用方显式给了 kind 就与推断对账（rNA 的 IDT 不能被当成肽）
+    if requested_kind in SEQUENCE_KINDS and requested_kind != deduced:
+        raise ValueError(t("bioseq_idt_kind_mismatch", deduced, requested_kind, _clip(text)))
+
+    sequence = "".join(base for _, base in residues)
+    result = _from_sequence(sequence, deduced)
+    result["format"] = "idt"
+    result["idt_sugars"] = {"r": "ribose", "": "deoxyribose", "d": "deoxyribose"}[sugar]
+    result["warnings"] = list(result.get("warnings") or []) + [
+        t("bioseq_idt_normalized", deduced, sequence)]
+    return result
+
+
 def _from_sequence(text: str, kind: str) -> dict[str, Any]:
     """裸序列路径：先定字母表，再按 kind 对应的 flavor 调用 RDKit。"""
     warnings: list[str] = []
@@ -281,9 +366,11 @@ def _from_sequence(text: str, kind: str) -> dict[str, Any]:
     if not letters:
         raise ValueError(t("bioseq_empty"))
 
-    bad = sorted(set(letters) - set(alphabet))
+    # 保序去重（原来用 sorted(set(...))，报出来是 "/3HOPRS" 这种看起来像乱码的东西；
+    # 现在按出现顺序、空格分隔，人能一眼看出是哪些字符）
+    bad = list(dict.fromkeys(ch for ch in letters if ch not in set(alphabet)))
     if bad:
-        raise ValueError(t("bioseq_bad_letters", kind, "".join(bad), alphabet, _clip(text)))
+        raise ValueError(t("bioseq_bad_letters", kind, " ".join(bad), alphabet, _clip(text)))
 
     # 字母表内的可疑组合：不拦，但要如实说出来（选了 rna/dna 就尊重选择）
     if kind == "rna" and "T" in letters:
@@ -377,6 +464,13 @@ def parse_bioseq(value: str, kind: str = "auto") -> dict[str, Any]:
 
     if key == "helm":
         raise ValueError(t("bioseq_not_helm", _clip(text)))
+
+    if key == "idt" or _looks_like_idt(text):
+        # IDT 是**自带糖型**的记法（``rA``/``dC``），不算"猜"；但它的子集有限，
+        # 表达不了的部分由 _parse_idt 明确拒绝（见那里的注释）。
+        result = _parse_idt(text, key)
+        result["input"] = value
+        return result
 
     if key == "auto":
         # 这条是本模块的核心策略：没有类型信息就**不解析**，而不是选个默认值。

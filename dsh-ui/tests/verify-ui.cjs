@@ -234,8 +234,8 @@ async function findKetcher(page, tries = 60) {
   check('分析页签有「按大分子解析」按钮', await page.locator('[data-chem-fn="bioseq"]').count() > 0)
   if (await bioKind.count()) {
     const opts = await bioKind.first().locator('option').evaluateAll(os => os.map(o => o.value))
-    check('大分子类型含 6 种口径（auto/peptide/peptide3/rna/dna/helm）',
-      ['auto', 'peptide', 'peptide3', 'rna', 'dna', 'helm'].every(v => opts.includes(v)),
+    check('大分子类型含 7 种口径（auto/peptide/peptide3/rna/dna/helm/idt）',
+      ['auto', 'peptide', 'peptide3', 'rna', 'dna', 'helm', 'idt'].every(v => opts.includes(v)),
       JSON.stringify(opts))
   }
   // 关键：纯字母的 SMILES（CCO）**不能**被当成序列 —— 必须显式点「按大分子解析」才走那条路。

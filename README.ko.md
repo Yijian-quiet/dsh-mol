@@ -222,6 +222,31 @@ cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM: 접두사가 타입�
 > 번역한 뒤 계산한다. 서열 안의 공백도 RDKit은 조용히 여분의 수소로 바꾸므로, 이 계층이 먼저 정규화하고
 > 그 변경을 `warnings`에 기록한다.
 
+### IDT 표기법(Ketcher가 핵산을 내보내는 형식)
+
+Ketcher의 거대 분자 편집기에서 핵산을 내보내면 나오는 것이 **IDT 표기법**이다(실측: RNA를 그리면
+`rArCrGrTrU/3Phos/`). 잔기에는 당 유형 접두사가 붙고(`r`=리보스, `d`=디옥시, `m`=2′-O-메틸,
+`+`=LNA), `/3Phos/` `/5Phos/` 같은 말단 변형도 있다. `chem_bioseq`는 이것을 그대로 받는다 ——
+`kind` 값에 `idt`가 늘어난 이유다(`auto`도 알아본다: 당 접두사는 추측이 아니라 **선언**이다).
+
+**다만 무손실일 때만 변환한다.** 당 유형이 하나로 통일돼 있고 변형이 없을 때만 순수 서열로 바꿔
+RDKit에 넘긴다. 표현할 수 없는 것이 하나라도 있으면 거부하고 이유를 밝힌다:
+
+```python
+cc.parse_bioseq("rArCrGrTrU", kind="idt")         # → RNA ACGTU / MW 1543.997(당 통일·변형 없음 = 무손실)
+cc.parse_bioseq("rArCrGrTrU/3Phos/", kind="idt")  # ✗ 거부: 억지로 바꾸면 3′ 인산이 조용히 사라진다(≈79.97 Da)
+```
+
+거부할 때는 반드시 무엇 때문인지 짚어 준다:
+
+- 말단/골격 변형: `/3Phos/`, `/5Phos/`, `*`(포스포로티오에이트)
+- 비표준 당: `m`(2′-O-메틸), `+`(LNA)
+- 당 혼용: `rArCdT`(한 문자열에 리보스와 디옥시 —— RDKit은 한 번에 하나만 표현한다)
+- 호출자가 준 `kind`와의 충돌: `rArCrG` + `kind="dna"`(접두사가 선언하는 것은 RNA다)
+
+이유는 위와 같다: 억지 변환은 근사가 아니라 **화학적으로 완전히 틀렸는데 겉보기에는 아무 이상이 없는**
+결과를 만든다 —— 분자량이 79.97 Da 가벼운데 화면은 멀쩡해 보인다.
+
 ## Python API
 
 ```python
@@ -265,7 +290,7 @@ Retro* 설치(소스 + 모델 데이터, GB 단위)는 **[docs/RETROSYNTHESIS.md
 ## 테스트
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 핵심 케이스 65개(의존성 제로, pytest 불필요)
+PYTHONPATH=src python3 tests/run_tests.py    # 핵심 케이스 71개(의존성 제로, pytest 불필요)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 프로토콜 수준 스모크(실제로 서버를 띄우고 도구를 호출한다)
 bash tests/run_all.sh                        # 위의 둘 + 자체 점검을 한 번에
 ```
@@ -353,6 +378,6 @@ SDK **2.x는 `FastMCP`를 `MCPServer`로 이름을 바꿨고** API에 파괴적 
 
 MIT
 
-<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 33 -->

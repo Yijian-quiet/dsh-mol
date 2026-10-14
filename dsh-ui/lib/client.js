@@ -354,7 +354,11 @@ window.__ModuleLoader__.load({
         const info = describeCanvasRead(read)
         if (!read.value) { say(info.kindLabel, 'warn'); return }
         // 小分子进 SMILES 字段；大分子进同一个字段也没问题 —— 分析页签会按形态分流
-        setState({ smiles: read.kind === 'smiles' ? read.value : '', draftInput: read.value })
+        setState({
+          smiles: read.kind === 'smiles' ? read.value : '',
+          draftInput: read.value,
+          ...(read.kind === 'idt' ? { bioKind: 'idt' } : {}),
+        })
         if (read.kind === 'smiles') {
           const thumb = await makeThumb(frameRef.current, read.value)
           setState({ thumb: thumb || state.thumb })
@@ -646,7 +650,13 @@ window.__ModuleLoader__.load({
         const read = await readCanvas(frameRef.current)
         const info = describeCanvasRead(read)
         if (!read.value) { say(info.kindLabel, 'warn'); return }
-        setState({ draftInput: read.value, smiles: read.kind === 'smiles' ? read.value : '' })
+        setState({
+          draftInput: read.value,
+          smiles: read.kind === 'smiles' ? read.value : '',
+          // Ketcher 明确给的是 IDT 记法时自动选上 —— 记法自带糖型，属于**声明**不是猜。
+          // 只说"序列"（肽/RNA 都可能）时不自动选，因为那才是猜。
+          ...(read.kind === 'idt' ? { bioKind: 'idt' } : {}),
+        })
         const thumb = read.kind === 'smiles' ? await makeThumb(frameRef.current, read.value) : ''
         setState({ thumb: thumb || '' })
         say(read.kind === 'smiles' ? '已读入 SMILES' : `已读入${info.kindLabel}（点「基础性质」我会先转成分子）`, 'ok')
@@ -688,8 +698,8 @@ window.__ModuleLoader__.load({
           section('大分子（肽 / 核酸）', h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
             h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
               select(s.bioKind, (v) => setState({ bioKind: v }), [
-                ['auto', '自动（仅 HELM）'], ['peptide', '肽 · 1 字母'], ['peptide3', '肽 · 3 字母'],
-                ['rna', 'RNA'], ['dna', 'DNA'], ['helm', 'HELM'],
+                ['auto', '自动（HELM / IDT）'], ['peptide', '肽 · 1 字母'], ['peptide3', '肽 · 3 字母'],
+                ['rna', 'RNA'], ['dna', 'DNA'], ['helm', 'HELM'], ['idt', 'IDT 记法'],
               ], { id: 'bio-kind' }),
               button('按大分子解析', () => { void runSeq() }, { id: 'bioseq', busy: s.busy })),
             h('div', { style: { fontSize: 11, color: C.faint, lineHeight: 1.6 } },

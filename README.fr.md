@@ -226,6 +226,34 @@ La règle est donc la suivante :
 > séquence sont eux aussi silencieusement transformés en hydrogènes supplémentaires par RDKit ; nous les
 > normalisons d'abord et consignons la modification dans `warnings`.
 
+### La notation IDT (ce que Ketcher exporte)
+
+Quand l'éditeur de macromolécules de Ketcher exporte un acide nucléique, il produit la **notation
+IDT** (mesuré : dessiner un RNA donne `rArCrGrTrU/3Phos/`) : les résidus portent un préfixe de sucre
+(`r`=ribose, `d`=désoxy, `m`=2'-O-méthyl, `+`=LNA) et il y a des modifications terminales comme
+`/3Phos/` ou `/5Phos/`. `chem_bioseq` l'accepte telle quelle — d'où la nouvelle valeur `idt` pour
+`kind` (`auto` la reconnaît aussi : le préfixe de sucre est une **déclaration**, pas une supposition).
+
+**Mais la conversion n'a lieu que si elle est sans perte.** Type de sucre uniforme et aucune
+modification : la notation devient une séquence simple confiée à RDKit. Dès qu'un élément ne peut pas
+être exprimé, l'outil refuse et dit pourquoi :
+
+```python
+cc.parse_bioseq("rArCrGrTrU", kind="idt")         # → RNA ACGTU / masse 1543.997 (sucre uniforme, sans modif : sans perte)
+cc.parse_bioseq("rArCrGrTrU/3Phos/", kind="idt")  # ✗ refusé : forcer la conversion perdrait un phosphate 3′ en silence (≈79.97 Da)
+```
+
+Chaque refus nomme le coupable :
+
+- modifications terminales / de squelette : `/3Phos/`, `/5Phos/`, `*` (phosphorothioate)
+- sucres non standard : `m` (2'-O-méthyl), `+` (LNA)
+- sucres mélangés : `rArCdT` (ribose et désoxy dans la même chaîne — RDKit n'en exprime qu'un à la fois)
+- un conflit avec le `kind` fourni par l'appelant : `rArCrG` + `kind="dna"` (le préfixe déclare du RNA)
+
+La raison est la même que plus haut : forcer la conversion n'est pas une approximation, c'est un
+résultat **chimiquement complètement faux que rien ne trahit** — 79.97 Da de moins, et l'interface
+paraît parfaitement normale.
+
 ## API Python
 
 ```python
@@ -269,7 +297,7 @@ L'installation de Retro* (sources + données de modèle, de l'ordre du Go) est d
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 65 cas principaux (zéro dépendance, pytest inutile)
+PYTHONPATH=src python3 tests/run_tests.py    # 71 cas principaux (zéro dépendance, pytest inutile)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # test de fumée au niveau protocole MCP (vrai serveur, vrais appels d'outils)
 bash tests/run_all.sh                        # les deux ci-dessus plus les autotests, en une seule fois
 ```
@@ -356,6 +384,6 @@ Notre extra `[mcp]` épingle déjà `<2` ; si vous avez installé 2.x à la main
 
 MIT
 
-<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 33 -->

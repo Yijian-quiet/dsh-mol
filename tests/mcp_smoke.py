@@ -121,6 +121,17 @@ async def main() -> int:
             if not res.isError:
                 failures.append("裸序列没指定 kind 却没有报错（会静默算错分子）")
 
+            # 7) IDT 记法（Ketcher 导出核酸用的就是它）：无损子集要能转，
+            #    带修饰的必须拒绝 —— 后者硬转会静默丢掉修饰（如 3' 磷酸 ≈79.97 Da）。
+            r = _payload(await session.call_tool("chem_bioseq", {"value": "rArCrGrTrU"}))
+            print(f"  bioseq(rArCrGrTrU, IDT) -> kind={r.get('kind')} seq={r.get('sequence')} mw={r.get('mw')}")
+            if r.get("sequence") != "ACGTU" or r.get("format") != "idt":
+                failures.append(f"IDT 无损转换异常：{r}")
+            res = await session.call_tool("chem_bioseq", {"value": "rArCrGrTrU/3Phos/"})
+            print(f"  bioseq(rArCrGrTrU/3Phos/) -> isError={res.isError}")
+            if not res.isError:
+                failures.append("IDT 带修饰却被接受（会静默丢掉那个修饰）")
+
     if failures:
         print("\n失败：")
         for f in failures:

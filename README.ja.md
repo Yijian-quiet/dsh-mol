@@ -223,6 +223,31 @@ cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM：接頭辞が型を�
 > 翻訳してから計算する。配列中の空白も RDKit は黙って余分な水素に変えてしまうので、本層がまず正規化し、
 > その変更を `warnings` に記録する。
 
+### IDT 記法（Ketcher が核酸を書き出す形式）
+
+Ketcher の巨大分子エディタで核酸を書き出すと出てくるのが **IDT 記法**（実測では RNA を描くと
+`rArCrGrTrU/3Phos/`）。残基には糖型の接頭辞が付き（`r`=リボース、`d`=デオキシ、`m`=2′-O-メチル、
+`+`=LNA）、`/3Phos/` `/5Phos/` のような末端修飾もある。`chem_bioseq` はこれをそのまま受け取る ——
+`kind` の値に `idt` が増えたのはそのため（`auto` でも認識する：糖型の接頭辞は推測ではなく**宣言**）。
+
+**ただし、変換するのは無損なときだけ。** 糖型が揃っていて修飾もなければ、純粋な配列として RDKit に
+渡す。表現できないものが一つでもあれば拒否し、理由を明示する：
+
+```python
+cc.parse_bioseq("rArCrGrTrU", kind="idt")         # → RNA ACGTU / MW 1543.997（糖型が揃い修飾なし＝無損）
+cc.parse_bioseq("rArCrGrTrU/3Phos/", kind="idt")  # ✗ 拒否：無理に変換すると 3′ リン酸が静かに消える（≈79.97 Da）
+```
+
+拒否するときは必ず名指しする：
+
+- 末端／骨格の修飾：`/3Phos/`、`/5Phos/`、`*`（ホスホロチオエート）
+- 非標準の糖型：`m`（2′-O-メチル）、`+`（LNA）
+- 糖型の混在：`rArCdT`（同じ文字列にリボースとデオキシ —— RDKit は一度に片方しか表現できない）
+- 呼び出し側が渡した `kind` との衝突：`rArCrG` + `kind="dna"`（接頭辞が宣言しているのは RNA）
+
+理由は上と同じ：無理に変換するのは近似ではなく、**化学的に完全に誤っていて、しかも見た目には何も
+おかしくない**ということ —— 分子量が 79.97 Da 軽いのに、画面はまったく普通に見える。
+
 ## Python API
 
 ```python
@@ -266,7 +291,7 @@ Retro* の導入（ソース + モデルデータ、GB 級）は **[docs/RETROSY
 ## テスト
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # コアケース 65 件（依存ゼロ、pytest 不要）
+PYTHONPATH=src python3 tests/run_tests.py    # コアケース 71 件（依存ゼロ、pytest 不要）
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP プロトコルレベルのスモーク（実際にサーバーを起動し、実際にツールを呼ぶ）
 bash tests/run_all.sh                        # 上の二つ + 自己診断を一気に
 ```
@@ -354,6 +379,6 @@ SDK **2.x は `FastMCP` を `MCPServer` に改名**し、API に破壊的変更�
 
 MIT
 
-<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 33 -->

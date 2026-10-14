@@ -147,6 +147,36 @@ MESSAGES: dict[str, dict[str, str]] = {
             "当前 RDKit（{0}）没有 {1} 接口，无法解析生物大分子序列。"
             "MolFromSequence / MolFromHELM 需要 RDKit ≥ 2022.09；请升级：pip install -U rdkit"
         ),
+        "bioseq_idt_modifier": (
+            "这是 IDT 记法，且带末端/骨架修饰「{0}」：RDKit 的序列解析器表达不了它，"
+            "已拒绝解析。硬转成纯序列会**静默少掉这个修饰**（例如 /3Phos/ 是一个 3′ 磷酸，"
+            "分子量少约 79.97，却看不出任何异常）。请给不含修饰的纯序列（ACGU / ACGT），"
+            "或改用自带修饰信息的 HELM（以 RNA1 / DNA1 前缀开头）。"
+        ),
+        "bioseq_idt_unparsed": (
+            "IDT 记法无法解析：位置「{0}」不符合 IDT 语法（残基形如 rA / dC / A，"
+            "修饰形如 /3Phos/）。原始输入：{1}"
+        ),
+        "bioseq_idt_backbone": (
+            "IDT 记法里有硫代磷酸骨架「*」：RDKit 的序列解析器表达不了它，已拒绝解析"
+            "（硬转会静默丢掉这个硫）。原始输入：{0}"
+        ),
+        "bioseq_idt_sugar_unsupported": (
+            "IDT 记法里有 RDKit 序列解析器表达不了的糖型：{0}。"
+            "已拒绝解析 —— 硬转会得到一个化学上不相符、却看不出错的分子。原始输入：{1}"
+        ),
+        "bioseq_idt_mixed_sugar": (
+            "IDT 记法里混用了不同糖型（{0}）：RDKit 的 MolFromSequence 一次只能表达"
+            "一种糖型（全核糖或全脱氧），混用会算错。已拒绝解析。原始输入：{1}"
+        ),
+        "bioseq_idt_kind_mismatch": (
+            "IDT 记法本身声明这是 {0}，但调用方给的 kind 是 {1} —— 两边不一致，已拒绝解析"
+            "（这个记法的糖型前缀是**声明**，不是猜出来的：r=核糖、d=脱氧）。原始输入：{2}"
+        ),
+        "bioseq_idt_normalized": (
+            "IDT 记法 → {0} 序列「{1}」：逐残基糖型一致，属于无损转换"
+            "（已实测：flavor=2 下的 T 给的是核糖胸苷，带 2′-OH）"
+        ),
         "bioseq_normalized": (
             "输入里的空白/连字符按分隔符移除了：{0} → {1}"
             "（RDKit 不把空格当分隔符，而会把它变成额外的氢）"
@@ -281,6 +311,41 @@ MESSAGES: dict[str, dict[str, str]] = {
         "bioseq_rdkit_unsupported": (
             "This RDKit ({0}) has no {1} entry point, so biological sequences cannot be parsed. "
             "MolFromSequence / MolFromHELM require RDKit >= 2022.09; upgrade with: pip install -U rdkit"
+        ),
+        "bioseq_idt_modifier": (
+            "This is IDT notation with a terminal/backbone modification \"{0}\": RDKit's "
+            "sequence parser cannot express it, so parsing was refused. Forcing a plain "
+            "sequence would **silently drop the modification** (e.g. /3Phos/ is a 3' phosphate, "
+            "about 79.97 Da, and nothing would look wrong). Pass an unmodified sequence "
+            "(ACGU / ACGT) or use HELM (RNA1 / DNA1 prefix), which carries modifications."
+        ),
+        "bioseq_idt_unparsed": (
+            "Cannot parse IDT notation: \"{0}\" does not fit the IDT grammar (residues look like "
+            "rA / dC / A, modifications like /3Phos/). Original input: {1}"
+        ),
+        "bioseq_idt_backbone": (
+            "IDT notation contains a phosphorothioate backbone \"*\", which RDKit's sequence "
+            "parser cannot express; parsing was refused (forcing it would silently drop the "
+            "sulfur). Original input: {0}"
+        ),
+        "bioseq_idt_sugar_unsupported": (
+            "IDT notation uses sugar chemistry RDKit's sequence parser cannot express: {0}. "
+            "Parsing was refused -- forcing it would produce a chemically different molecule "
+            "with nothing looking wrong. Original input: {1}"
+        ),
+        "bioseq_idt_mixed_sugar": (
+            "IDT notation mixes sugar types ({0}): RDKit's MolFromSequence can express only one "
+            "sugar type at a time (all-ribose or all-deoxy), so mixing would compute the wrong "
+            "molecule. Parsing was refused. Original input: {1}"
+        ),
+        "bioseq_idt_kind_mismatch": (
+            "The IDT notation itself declares {0}, but kind was given as {1} -- they disagree, so "
+            "parsing was refused (the sugar prefix is a **declaration**, not a guess: "
+            "r=ribose, d=deoxy). Original input: {2}"
+        ),
+        "bioseq_idt_normalized": (
+            "IDT notation -> {0} sequence \"{1}\": sugar type is uniform per residue, so this is "
+            "a lossless conversion (verified: T under flavor=2 is ribothymidine with a 2'-OH)"
         ),
         "bioseq_normalized": (
             "Whitespace/hyphens in the input were removed as separators: {0} -> {1} "

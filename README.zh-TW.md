@@ -222,6 +222,28 @@ cc.parse_bioseq("PEPTIDE1{G.A.V.L}$$$$")           # HELM：前綴自帶類型�
 > 不報錯，所以 `peptide3` 由本層自己翻譯成 1 字母碼再算。序列裡的空白也會被 RDKit
 > 悄悄變成額外的氫，本層先正規化並把這次改動記進 `warnings`。
 
+### IDT 記法（Ketcher 匯出的核酸）
+
+Ketcher 的大分子編輯器匯出核酸時給的是 **IDT 記法**（實測畫 RNA 得到 `rArCrGrTrU/3Phos/`）：
+殘基帶糖型前綴（`r`=核糖、`d`=去氧、`m`=2′-O-甲基、`+`=LNA），還有 `/3Phos/`、`/5Phos/` 這類末端修飾。
+`chem_bioseq` 直接吃它 —— `kind` 取值因此多了 `idt`（`auto` 也認：糖型前綴是**宣告**，不是猜）。
+
+**但只在無損時才轉換。** 糖型統一、又沒有修飾，才轉成純序列交給 RDKit；只要有一點它表達不了，就拒絕並說明原因：
+
+```python
+cc.parse_bioseq("rArCrGrTrU", kind="idt")         # → RNA ACGTU / MW 1543.997（糖型統一、無修飾，無損）
+cc.parse_bioseq("rArCrGrTrU/3Phos/", kind="idt")  # ✗ 拒絕：硬轉會靜默少掉一個 3′ 磷酸（≈79.97 Da）
+```
+
+拒絕時一律指名道姓，不含糊：
+
+- 末端／骨架修飾：`/3Phos/`、`/5Phos/`、`*`（硫代磷酸）
+- 非標準糖型：`m`（2′-O-甲基）、`+`（LNA）
+- 混糖型：`rArCdT`（同一串裡既有核糖又有去氧 —— RDKit 一次只能表達一種）
+- 與呼叫方給的 `kind` 衝突：`rArCrG` + `kind="dna"`（前綴宣告的是 RNA）
+
+理由和上面一樣：硬轉不是「近似」，是**化學上完全錯誤卻看不出任何異常** —— 分子量少了 79.97 Da，介面上卻毫無異樣。
+
 ## Python API
 
 ```python
@@ -265,7 +287,7 @@ python3 examples/monomer_cleanup.py
 ## 測試
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 65 個核心案例（零相依，不需要 pytest）
+PYTHONPATH=src python3 tests/run_tests.py    # 71 個核心案例（零相依，不需要 pytest）
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 協定級冒煙（真起服務、真呼工具）
 bash tests/run_all.sh                        # 上面兩件 + 自測，一把梭
 ```
@@ -350,6 +372,6 @@ SDK **2.x 把 `FastMCP` 改名成了 `MCPServer`**，API 有破壞性變更。
 
 MIT
 
-<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 33 -->

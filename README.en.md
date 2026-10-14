@@ -225,6 +225,33 @@ So the rule here is:
 > translated into 1-letter codes right here. Whitespace inside a sequence is also silently turned
 > into extra hydrogens by RDKit; we normalize it first and record the change in `warnings`.
 
+### IDT notation (what Ketcher exports)
+
+When Ketcher's macromolecule editor exports a nucleic acid it hands you **IDT notation**
+(drawing an RNA measured out as `rArCrGrTrU/3Phos/`): residues carry a sugar prefix
+(`r`=ribose, `d`=deoxy, `m`=2'-O-methyl, `+`=LNA), plus terminal modifications like `/3Phos/`
+and `/5Phos/`. `chem_bioseq` takes it as-is — which is why `idt` is now one of the `kind` values
+(`auto` recognizes it too: the sugar prefix is a **declaration**, not a guess).
+
+**But it only converts when the conversion is lossless.** Uniform sugar type and no modifications,
+and the notation becomes a plain sequence handed to RDKit; the moment something cannot be
+expressed, it refuses and says why:
+
+```python
+cc.parse_bioseq("rArCrGrTrU", kind="idt")         # → RNA ACGTU / MW 1543.997 (uniform sugar, no mods: lossless)
+cc.parse_bioseq("rArCrGrTrU/3Phos/", kind="idt")  # ✗ refused: forcing it would silently drop a 3′ phosphate (≈79.97 Da)
+```
+
+Every refusal names the culprit:
+
+- terminal / backbone modifications: `/3Phos/`, `/5Phos/`, `*` (phosphorothioate)
+- non-standard sugars: `m` (2'-O-methyl), `+` (LNA)
+- mixed sugars: `rArCdT` (ribose and deoxy in one string — RDKit can express only one at a time)
+- a conflict with the `kind` the caller passed: `rArCrG` + `kind="dna"` (the prefix declares RNA)
+
+The reason is the same as above: forcing it is not an approximation, it is **chemically completely
+wrong with nothing looking wrong** — 79.97 Da lighter, and the UI looks perfectly normal.
+
 ## Python API
 
 ```python
@@ -268,7 +295,7 @@ Installing Retro* (source + model data, GB-scale) is covered in **[docs/RETROSYN
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 65 core cases (zero deps, no pytest needed)
+PYTHONPATH=src python3 tests/run_tests.py    # 71 core cases (zero deps, no pytest needed)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real server, real tool calls)
 bash tests/run_all.sh                        # the two above plus self-checks, in one shot
 ```
@@ -355,6 +382,6 @@ Our `[mcp]` extra already pins `<2`; if you installed 2.x by hand, `dsh-mol-mcp`
 
 MIT
 
-<!-- dsh-mol:test-count 65 -->
+<!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 33 -->

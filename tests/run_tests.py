@@ -786,6 +786,98 @@ def _():
         cc.set_lang(original)
 
 
+# ---------------------------------------------------------------- IDT
+# 为什么单列一组：Ketcher 大分子编辑器导出**核酸时给的就是 IDT 记法**
+# （实测用户画 RNA 得到 ``rArCrGrTrU/3Phos/``）。IDT 带糖型前缀（r/d/m/+）与末端修饰
+# （/5Phos/ /3Phos/ …），**RDKit 的序列解析器表达不了** —— 所以只在无损时转换，
+# 表达不了的一律拒绝并说清原因（硬转会得到一个分子量对不上、却看不出错的分子）。
+@case("IDT: 全核糖 rArCrGrTrU 无损转成 RNA（含核糖胸苷 T）")
+def _():
+    r = cc.parse_bioseq("rArCrGrTrU")
+    eq(r["kind"], "rna", "kind")
+    eq(r["format"], "idt", "format 应标明来自 IDT")
+    eq(r["sequence"], "ACGTU", "规范序列")
+    eq(r["formula"], "C48H61N17O34P4", "分子式")
+    close(r["mw"], 1544.0, 0.05, "mw")
+    # 关键化学正确性：flavor=2 里的 T 必须是**核糖**胸苷（带 2'-OH），不是脱氧。
+    # 若 RDKit 给的是脱氧核糖，分子量会少一个 O（约 16）而看不出错。
+    u = cc.parse_bioseq("rU")
+    t_ = cc.parse_bioseq("rT")
+    close(t_["mw"] - u["mw"], 14.03, 0.05, "rT 与 rU 之差应只是碱基甲基化(+14)")
+    true(any("核糖" in w or "ribothymidine" in w for w in r["warnings"]), "应有 IDT 归一化说明")
+
+
+@case("IDT: 全脱氧 dAdTdG 转成 DNA；纯 ACGT 不受影响")
+def _():
+    r = cc.parse_bioseq("dAdTdG")
+    eq(r["kind"], "dna", "kind")
+    eq(r["sequence"], "ATG", "规范序列")
+    close(r["mw"], 884.65, 0.05, "mw")
+    # 纯序列（无糖型前缀）不属于 IDT，仍走"必须显式给 kind"
+    try:
+        cc.parse_bioseq("ACGT")
+        raise AssertionError("纯序列 auto 仍应拒绝")
+    except ValueError as exc:
+        true("无法判断" in str(exc), f"应保持歧义保护：{str(exc)[:50]}")
+
+
+@case("IDT: 带修饰一律拒绝（/3Phos/ 会静默少一个磷酸）")
+def _():
+    try:
+        cc.parse_bioseq("rArCrGrTrU/3Phos/")
+        raise AssertionError("带 /3Phos/ 应当抛 ValueError")
+    except ValueError as exc:
+        msg = str(exc)
+        true("/3Phos/" in msg, f"应点名是哪个修饰：{msg[:60]}")
+        true("79.9" in msg, f"应给出丢掉的量级：{msg[:80]}")
+    for text, why in (("rArC*", "硫代磷酸"), ("rAmA", "2'-O-甲基"), ("rA+G", "LNA")):
+        try:
+            cc.parse_bioseq(text)
+            raise AssertionError(f"{text} 应当抛 ValueError（{why}）")
+        except ValueError as exc:
+            true(why.split("'")[0] in str(exc) or "表达不了" in str(exc),
+                 f"{text} 应说明原因：{str(exc)[:60]}")
+
+
+@case("IDT: 混糖型 / 与显式 kind 冲突都拒绝（前缀是声明，不是猜）")
+def _():
+    try:
+        cc.parse_bioseq("rArCdT")
+        raise AssertionError("混糖型应当抛 ValueError")
+    except ValueError as exc:
+        true("混用" in str(exc) or "混" in str(exc), f"应说明混糖型：{str(exc)[:60]}")
+    try:
+        cc.parse_bioseq("rArCrG", kind="dna")
+        raise AssertionError("与 kind 冲突应当抛 ValueError")
+    except ValueError as exc:
+        true("rna" in str(exc) and "dna" in str(exc), f"应说明冲突双方：{str(exc)[:70]}")
+
+
+@case("IDT: 坏语法给人话错误（不是一串乱码字符）")
+def _():
+    try:
+        cc.parse_bioseq("rArCX")
+        raise AssertionError("坏语法应当抛 ValueError")
+    except ValueError as exc:
+        msg = str(exc)
+        true("IDT" in msg, f"应指明是 IDT 语法问题：{msg[:60]}")
+    # 半截修饰符（只有左斜杠）
+    try:
+        cc.parse_bioseq("rArC/3Phos")
+        raise AssertionError("半截修饰应当抛 ValueError")
+    except ValueError as exc:
+        true("IDT" in str(exc), f"应指明是 IDT 语法问题：{str(exc)[:60]}")
+
+
+@case("IDT: 转出的 SMILES 能被既有分析工具直接吃下")
+def _():
+    r = cc.parse_bioseq("rArCrGrU")
+    props = cc.properties(r["smiles"])
+    eq(props["formula"], r["formula"], "分子式应与 properties 一致")
+    a = cc.analyze(r["smiles"])
+    true("druglikeness" in a or "rules" in a, "analyze 应能处理 IDT 转出的分子")
+
+
 # ---------------------------------------------------------------- 汇总
 # 语言无关的机器可读标记。每个 README*.md（含翻译版）都必须带这两行，
 # 位置固定在文件末尾（许可章节之后），一行一个数字：

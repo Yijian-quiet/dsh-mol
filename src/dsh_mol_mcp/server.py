@@ -286,20 +286,28 @@ def chem_bioseq(value: str, kind: str = "auto") -> dict[str, Any]:
     """Parse a peptide / nucleic-acid sequence or a HELM string into a molecule, and return a
     canonical SMILES that every other tool here (properties / analyze / draw / convert) can use.
 
-    `kind` is one of auto / peptide / peptide3 / rna / dna / helm, and **for a bare sequence it
-    must be given explicitly**: A/T/G/C are valid both as amino acids (Ala/Thr/Gly/Cys) and as
+    `kind` is one of auto / peptide / peptide3 / rna / dna / helm / idt, and **for a bare sequence
+    it must be given explicitly**: A/T/G/C are valid both as amino acids (Ala/Thr/Gly/Cys) and as
     bases (adenine/thymine/guanine/cytosine), and RDKit silently reads such a string as a peptide
     without raising any error — the same text is three different molecules under peptide / RNA /
     DNA. `auto` therefore only infers HELM (whose PEPTIDE1 / RNA1 / DNA1 prefix declares the type)
-    and raises a clear error for an untyped bare sequence. `peptide3` means 3-letter amino-acid
-    codes (Gly-Ala-Val); RDKit does not actually support them, so this layer translates them.
+    and raises a clear error for an untyped bare sequence (as does IDT notation, whose sugar
+    prefix r/d is itself a declaration). `peptide3` means 3-letter amino-acid codes
+    (Gly-Ala-Val); RDKit does not actually support them, so this layer translates them.
+    `idt` is the IDT notation that Ketcher exports for nucleic acids (e.g. rArCrGrTrU/3Phos/);
+    it is converted **only when lossless** — uniform sugar type and no modifications — because
+    RDKit's sequence parser cannot express e.g. a 3' phosphate, and forcing the conversion would
+    silently drop it (~79.97 Da).
 
     把肽 / 核酸序列或 HELM 字符串解析成分子，并给出规范 SMILES（本项目的其它工具都能接着用）。
-    kind 取 auto / peptide / peptide3 / rna / dna / helm，且**裸序列必须显式指定**：
+    kind 取 auto / peptide / peptide3 / rna / dna / helm / idt，且**裸序列必须显式指定**：
     A/T/G/C 既是氨基酸字母（Ala/Thr/Gly/Cys）也是碱基字母（腺嘌呤/胸腺嘧啶/鸟嘌呤/胞嘧啶），
     RDKit 会把这种串静默当成肽、不报任何错 —— 同一段文本在 peptide / RNA / DNA 下是三个不同的
     分子。因此 auto 只推断 HELM（它的 PEPTIDE1 / RNA1 / DNA1 前缀自带类型），遇到没有类型的裸
-    序列会明确报错。peptide3 指 3 字母氨基酸码（Gly-Ala-Val）；RDKit 其实不支持，由本层自行翻译。"""
+    序列会明确报错（IDT 记法同理 —— 它的 r/d 糖型前缀本身就是声明）。peptide3 指 3 字母氨基酸码
+    （Gly-Ala-Val）；RDKit 其实不支持，由本层自行翻译。idt 是 Ketcher 导出核酸时用的 IDT 记法
+    （如 rArCrGrTrU/3Phos/）；**只在无损时转换**（糖型统一且无修饰），因为 RDKit 的序列解析器
+    表达不了 3′ 磷酸这类修饰，硬转会静默把它丢掉（约 79.97 Da）。"""
     return cc.parse_bioseq(value, kind=kind)
 
 
@@ -308,6 +316,14 @@ def chem_bioseq(value: str, kind: str = "auto") -> dict[str, Any]:
 # --------------------------------------------------------------------------
 def _selftest() -> int:
     aspirin = "CC(=O)Oc1ccccc1C(=O)O"
+
+    def _refuses(fn) -> bool:
+        """调用必须抛 ValueError（用于"该拒绝的输入确实被拒绝了"的自检）。"""
+        try:
+            fn()
+        except ValueError:
+            return True
+        return False
 
     def _bioseq_refuses_to_guess() -> bool:
         """裸序列必须报错要求显式指定 kind，而不是默认当肽。"""
@@ -331,6 +347,10 @@ def _selftest() -> int:
         ("批量清洗", lambda: cc.batch_clean([aspirin, "C1CC"])["failed"] == 1),
         ("大分子：肽序列", lambda: abs(cc.parse_bioseq("GAVL", kind="peptide")["mw"] - 358.44) < 0.05),
         ("大分子：裸序列拒绝猜类型", _bioseq_refuses_to_guess),
+        ("大分子：IDT 无损转换",
+         lambda: cc.parse_bioseq("rArCrGrTrU")["sequence"] == "ACGTU"),
+        ("大分子：IDT 带修饰拒绝",
+         lambda: _refuses(lambda: cc.parse_bioseq("rArCrGrTrU/3Phos/"))),
     ]
     bad = 0
     for name, fn in checks:
