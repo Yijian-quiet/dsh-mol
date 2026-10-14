@@ -165,6 +165,11 @@ window.__ModuleLoader__.load({
      *   idt      Integrated DNA Technologies 记法（自带碱基类型，最不易歧义）
      *   sequence 序列（1 字母或 3 字母）
      *   fasta    FASTA
+     *
+     * 顺序不是拍脑袋 —— 有实测依据（2026-10-03）：
+     * 用户在 Macromolecules 里画了一段肽，读出来的是 **sequence**（`getIdt` 对它返回空），
+     * 所以肽靠 sequence 命中；核酸则会先命中 idt（IDT 自带碱基类型，比裸序列信息更全）。
+     * 两个都保留、并保持 idt 在前，是因为 IDT 对核酸更精确、对肽不生效。
      *   ket      Ketcher 自己的 JSON（只有它时至少能判断"画布上有没有东西"）
      *   empty    确实什么都没有
      *
