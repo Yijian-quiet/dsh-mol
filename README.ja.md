@@ -15,6 +15,7 @@
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
+[![release](https://img.shields.io/github/v/release/Yijian-quiet/dsh-mol?label=release)](https://github.com/Yijian-quiet/dsh-mol/releases/latest)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
 [中文](README.md) | [English](README.en.md) | **日本語** | [한국어](README.ko.md) | [Français](README.fr.md) | [繁體中文](README.zh-TW.md)
