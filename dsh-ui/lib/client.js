@@ -66,6 +66,7 @@ window.__ModuleLoader__.load({
       smarts: 'c1ccccc1',    // 子结构匹配的 SMARTS
       batch: '',             // 批量页签的清单
       bioKind: 'auto',       // 大分子解析口径（auto/peptide/peptide3/rna/dna/helm）
+      pasteInput: '',         // 「把 SMILES 画到画板」用的输入框
       thumb: '',             // 分析页签的结构缩略图（object URL）
       result: null,          // { kind, ok, data, error }
       busy: false,
@@ -369,6 +370,72 @@ window.__ModuleLoader__.load({
         if (then) then(read.value)
       }
 
+      /**
+       * 把一段 SMILES **画到画板**（工作台原本是单向的：只会从画板往外读）。
+       *
+       * 为什么不直接 `setMolecule` 了事：
+       * 1. 先用 chemcore 校验 —— 它给的是人话原因（环未闭合、价键超限…），比 Ketcher 抛的
+       *    异常有用得多；
+       * 2. 画完**回读一次**确认画板真的拿到了 —— 实测在大分子模式下 `setMolecule` 不报错、
+       *    但画布上什么也没有（SMILES 在大分子模式下不适用），必须自己核对；
+       * 3. 回读到的规范 SMILES 会填回输入框，后续"插入到对话/分析"直接用。
+       */
+      const loadToCanvas = async (text) => {
+        const smiles = (text ?? state.pasteInput ?? '').trim()
+        if (!smiles) { say('先给一段 SMILES（或点「读剪贴板」）', 'warn'); return }
+        const k = ketcherApi(frameRef.current)
+        if (!k) { say('画板还没就绪', 'warn'); return }
+        setState({ busy: true })
+        try {
+          const res = await callTool('check', { smiles })
+          const r = res.ok ? res.result : null
+          if (!res.ok) { say(`校验没跑成：${res.message}`, 'err'); return }
+          // check 的人话原因在 result.diagnostics[] 里（顶层没有 message；带 position 字符位置）
+          const diags = r.diagnostics || []
+          const errs = diags.filter((d) => d.level === 'error')
+          if (r.level === 'error' || errs.length) {
+            const first = errs[0] || {}
+            const where = typeof r.position === 'number' && r.position >= 0
+              ? `（第 ${r.position + 1} 个字符附近）` : ''
+            say(`这段 SMILES 有问题${where}：${first.message || first.raw || '无法解析'}`, 'err')
+            return
+          }
+          // warn（能解析但可疑，如异常电荷）不拦 —— 画上去，但要提一句
+          const warns = diags.filter((d) => d.level === 'warn')
+          try {
+            await k.setMolecule(smiles)
+          } catch (error) {
+            say(`画板不接受这段结构：${String(error.message || error).slice(0, 140)}`, 'err')
+            return
+          }
+          const back = await readCanvas(frameRef.current)
+          if (!back.value) {
+            // 最可能的原因：画板还在 Macromolecules 模式（SMILES 在那里不适用）
+            say('画板没有接收这个结构 —— 如果现在是大分子模式，请先切回 Molecules', 'warn')
+            return
+          }
+          setState({ smiles: back.value, draftInput: back.value, pasteInput: smiles })
+          const note = warns.length ? `（有提醒：${warns[0].message}）` : ''
+          say(`已画到画板：${back.value.length > 44 ? back.value.slice(0, 44) + '…' : back.value}${note}`, 'ok')
+        } finally {
+          setState({ busy: false })
+        }
+      }
+
+      /** 从剪贴板取 SMILES 并直接画上去（浏览器会要求授权；被拒也给人话提示）。 */
+      const pasteToCanvas = async () => {
+        let text = ''
+        try {
+          text = await navigator.clipboard.readText()
+        } catch {
+          say('读剪贴板被拒绝 —— 浏览器需要授权，或者页面不在安全上下文；可以手动粘到输入框再点「画到画板」', 'warn')
+          return
+        }
+        if (!text || !text.trim()) { say('剪贴板是空的', 'warn'); return }
+        setState({ pasteInput: text.trim() })
+        await loadToCanvas(text)
+      }
+
       const insert = async () => {
         const read = await readCanvas(frameRef.current)
         const info = describeCanvasRead(read)
@@ -412,6 +479,21 @@ window.__ModuleLoader__.load({
             padding: '8px 10px', background: C.soft, borderTop: `1px solid ${C.border}`,
           },
         },
+          h('input', {
+            value: s.pasteInput || '', placeholder: '粘贴 SMILES，如 CC(=O)Oc1ccccc1C(=O)O',
+            'data-chem-input': 'paste-smiles',
+            onInput: (e) => setState({ pasteInput: e.target.value }),
+            onKeyDown: (e) => { if (e.key === 'Enter') { void loadToCanvas(e.target.value) } },
+            style: {
+              flex: '1 1 220px', minWidth: 160, padding: '5px 7px', fontSize: 12,
+              borderRadius: 6, border: `1px solid ${C.border}`, background: '#fff', color: C.text,
+            },
+          }),
+          button('画到画板', () => { void loadToCanvas() },
+            { id: 'load-canvas', title: '把输入框里的 SMILES 画进 Ketcher（会先校验）' }),
+          button('读剪贴板', () => { void pasteToCanvas() },
+            { id: 'paste-canvas', title: '读取剪贴板里的 SMILES 并画上去（需要浏览器授权）' }),
+          h('span', { style: { width: 1, height: 18, background: C.border, margin: '0 2px' } }),
           button('插入到对话', insert, { id: 'insert', primary: true, title: '把 SMILES 放进聊天输入框' }),
           button('取到分析页', () => { void take(() => setState({ tab: 'analyze' })) }, { id: 'to-analyze', title: '读当前结构并切到分析' }),
           h('span', { style: { width: 1, height: 18, background: C.border, margin: '0 2px' } }),
@@ -705,7 +787,7 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontSize: 11, color: C.faint, lineHeight: 1.6 } },
               '把序列/HELM 转成分子，之后上面那些按钮都能用。',
               h('br'),
-              '注意：`ATGC` 这类串有歧义（既是氨基酸字母也是碱基），所以只选「自动」时仅 HELM 能通过。'))),
+              '注意：`ATGC` 这类串有歧义（既是氨基酸字母也是碱基），所以「自动」只接受自带类型信息的 HELM 与 IDT 记法。'))),
 
           section('格式转换', h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
             [['smiles', 'SMILES'], ['inchi', 'InChI'], ['inchikey', 'InChIKey'], ['formula', '分子式']].map(([to, label]) => button(label, () => {

@@ -97,7 +97,7 @@ dsh-mol-mcp --selftest          # 先自检（不需要任何 MCP 客户端）
 
 <table>
 <tr>
-<td width="33%"><img src="docs/workbench-draw.png" alt="画板页签"><br><b>① 画板</b><br>Ketcher 全功能画板（浮层可拖动、可最大化）。「插入到对话」把 SMILES 写进输入框 —— <b>文本只有结构本身，不夹带任何内部路径</b>。</td>
+<td width="33%"><img src="docs/workbench-draw.png" alt="画板页签"><br><b>① 画板</b><br>Ketcher 全功能画板（浮层可拖动、可最大化）。<b>粘一段 SMILES 就能直接画上去</b>（或点「读剪贴板」），画完点「插入到对话」把 SMILES 写进输入框 —— <b>文本只有结构本身，不夹带任何内部路径</b>。</td>
 <td width="33%"><img src="docs/workbench-analyze.png" alt="分析页签"><br><b>② 分析</b><br>左边输入/按钮，右边出数。基础性质 + 类药性 + 结构警报 + 骨架一次给全，全部是本地 RDKit 现算。</td>
 <td width="33%"><img src="docs/workbench-retro.png" alt="逆合成页签"><br><b>③ 逆合成</b><br>目标分子 → 多步路线。未装模型数据时，<b>它告诉你要下载什么、放哪里</b>，而不是假装算过。</td>
 </tr>
@@ -292,7 +292,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 协议级冒烟（真起服�
 bash tests/run_all.sh                        # 上面两件 + 自测，一把梭
 ```
 
-界面用 Playwright 无头验收（33 条断言，覆盖"打开工作台后聊天还能不能用""数字是不是真算的"
+界面用 Playwright 无头验收（39 条断言，覆盖"打开工作台后聊天还能不能用""数字是不是真算的"
 "后端没装好时会不会编路线"）：
 
 ```bash
@@ -374,4 +374,4 @@ MIT
 
 <!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
-<!-- dsh-mol:ui-assertions 33 -->
+<!-- dsh-mol:ui-assertions 39 -->

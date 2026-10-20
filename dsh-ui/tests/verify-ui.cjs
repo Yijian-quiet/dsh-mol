@@ -258,6 +258,58 @@ async function findKetcher(page, tries = 60) {
   check('解析后把生成的 SMILES 填回输入框（既有分析管线可复用）',
     (await smilesInput.inputValue()).length > 5)
 
+  /* ── 4.6 从 SMILES 画到画板（工作台原本是单向的）─────────────────
+     验三件事：入口在、合法 SMILES 真能画上去并回读得到、非法 SMILES 被人话拦住。 */
+
+  // 这些控件在**画板页签**里，先切过去（当前停在分析页签）
+  await page.locator('[data-chem-tab="draw"]').click()
+  await page.waitForTimeout(1200)
+
+  const pasteInput = page.locator('[data-chem-input="paste-smiles"]')
+  check('画板页签有 SMILES 粘贴输入框', await pasteInput.count() > 0)
+  check('有「画到画板」按钮', await page.locator('[data-chem-fn="load-canvas"]').count() > 0)
+  check('有「读剪贴板」按钮', await page.locator('[data-chem-fn="paste-canvas"]').count() > 0)
+
+  // 非法 SMILES：必须被人话拦住，且不能糊到画板上
+  if (await pasteInput.count()) {
+    await pasteInput.fill('C1CC')
+    await page.locator('[data-chem-fn="load-canvas"]').click()
+    await page.waitForTimeout(2500)
+    text = await panelText()
+    check('非法 SMILES（C1CC）被拦住并给出人话原因',
+      /环闭合标记没有配对|有问题/.test(text))
+
+    // 合法 SMILES：画上去之后，画板回读应当拿到同一个分子
+    await pasteInput.fill('c1ccccc1O')
+    await page.locator('[data-chem-fn="load-canvas"]').click()
+    await page.waitForTimeout(3000)
+    const back = await page.evaluate(() => {
+      const f = [...document.querySelectorAll('iframe')].find((x) => x.contentWindow?.ketcher)
+      return f ? f.contentWindow.ketcher.getSmiles() : null
+    })
+    // 别断言"回读串等于某个写法" —— Ketcher 有它自己的规范化（苯酚 `c1ccccc1O` 回读成
+    // `c1c(O)cccc1`，同一个分子）。改用**幂等**检验：把回读串再画一次，还应当回读出同一个串。
+    const backClean = typeof back === 'string' ? back.replace(/\s/g, '') : ''
+    check('合法 SMILES 画到画板后画布上确有结构', backClean.length > 0, JSON.stringify(back))
+    // 也别断言"回读串再画一次还是同一个串"：实测 Ketcher 的 getSmiles() 在两个等价写法之间
+    // 来回翻（`c1ccccc1O` ↔ `c1c(O)cccc1`），幂等**不成立**。
+    // 改成化学意义上的检验：把画上去的结构交给分析页，看它是不是苯酚（C6H6O）。
+    if (backClean) {
+      await page.locator('[data-chem-tab="analyze"]').click()
+      await page.waitForTimeout(1000)
+      await page.locator('[data-chem-fn="analyze"]').click()
+      await page.waitForTimeout(3500)
+      const analyzed = await panelText()
+      check('画到画板的结构经分析确认是苯酚（C6H6O）', analyzed.includes('C6H6O'))
+      await page.locator('[data-chem-tab="draw"]').click()
+      await page.waitForTimeout(800)
+    }
+  }
+
+  // 后续断言都在分析页签，切回去
+  await page.locator('[data-chem-tab="analyze"]').click()
+  await page.waitForTimeout(1000)
+
   // 子结构匹配：SMARTS 苯环应当命中阿司匹林
   await smilesInput.fill('CC(=O)Oc1ccccc1C(=O)O')
   await page.locator('[data-chem-fn="substructure"]').click()

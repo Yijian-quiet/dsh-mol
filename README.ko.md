@@ -97,7 +97,7 @@ dsh-mol-mcp --selftest          # 먼저 자체 점검(MCP 클라이언트 불�
 
 <table>
 <tr>
-<td width="33%"><img src="docs/workbench-draw.png" alt="캔버스 탭"><br><b>① 캔버스</b><br>Ketcher 전체 기능 캔버스(오버레이는 드래그할 수 있고 최대화도 된다). "대화에 삽입"은 SMILES를 입력창에 써 넣는다 —— <b>텍스트에는 구조 자체만 들어가고 내부 경로는 끼어들지 않는다</b>.</td>
+<td width="33%"><img src="docs/workbench-draw.png" alt="캔버스 탭"><br><b>① 캔버스</b><br>Ketcher 전체 기능 캔버스(오버레이는 드래그할 수 있고 최대화도 된다). <b>SMILES를 붙여넣으면 바로 그려진다</b>("클립보드 읽기"도 가능). "대화에 삽입"은 SMILES를 입력창에 써 넣는다 —— <b>텍스트에는 구조 자체만 들어가고 내부 경로는 끼어들지 않는다</b>.</td>
 <td width="33%"><img src="docs/workbench-analyze.png" alt="분석 탭"><br><b>② 분석</b><br>왼쪽에 입력과 버튼, 오른쪽에 숫자. 기본 성질 + 약물 유사성 + 구조 경고 + 골격을 한 번에, 전부 로컬 RDKit이 즉시 계산한다.</td>
 <td width="33%"><img src="docs/workbench-retro.png" alt="역합성 탭"><br><b>③ 역합성</b><br>목표 분자 → 다단계 경로. 모델 데이터가 없으면 <b>무엇을 내려받아 어디에 두어야 하는지 알려준다</b>. 계산한 척하지 않는다.</td>
 </tr>
@@ -295,7 +295,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 프로토콜 수준 스모크
 bash tests/run_all.sh                        # 위의 둘 + 자체 점검을 한 번에
 ```
 
-화면은 Playwright 헤드리스로 인수한다(어서션 33개. "워크벤치를 연 뒤에도 채팅을 쓸 수 있는가",
+화면은 Playwright 헤드리스로 인수한다(어서션 39개. "워크벤치를 연 뒤에도 채팅을 쓸 수 있는가",
 "숫자가 정말 계산된 것인가", "백엔드가 없을 때 경로를 지어내지 않는가"를 덮는다):
 
 ```bash
@@ -380,4 +380,4 @@ MIT
 
 <!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
-<!-- dsh-mol:ui-assertions 33 -->
+<!-- dsh-mol:ui-assertions 39 -->

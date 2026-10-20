@@ -97,7 +97,7 @@ Three tabs, one molecule:
 
 <table>
 <tr>
-<td width="33%"><img src="docs/workbench-draw.png" alt="Draw tab"><br><b>① Draw</b><br>The full Ketcher canvas (the overlay drags and maximizes). "Insert into chat" writes the SMILES into the input box — <b>the text is the structure alone, with no internal path smuggled in</b>.</td>
+<td width="33%"><img src="docs/workbench-draw.png" alt="Draw tab"><br><b>① Draw</b><br>The full Ketcher canvas (the overlay drags and maximizes). <b>Paste a SMILES and it draws it</b> (or hit "read clipboard"); then "Insert into chat" writes the SMILES into the input box — <b>the text is the structure alone, with no internal path smuggled in</b>.</td>
 <td width="33%"><img src="docs/workbench-analyze.png" alt="Analyze tab"><br><b>② Analyze</b><br>Input and buttons on the left, numbers on the right. Basic properties + drug-likeness + structural alerts + scaffold in one pass, all computed live by local RDKit.</td>
 <td width="33%"><img src="docs/workbench-retro.png" alt="Retrosynthesis tab"><br><b>③ Retrosynthesis</b><br>Target molecule → multi-step route. With no model data installed, <b>it tells you what to download and where to put it</b> instead of pretending it computed something.</td>
 </tr>
@@ -302,7 +302,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real server, 
 bash tests/run_all.sh                        # the two above plus self-checks, in one shot
 ```
 
-The UI is accepted headless with Playwright (33 assertions, covering "can you still use the chat after opening the workbench",
+The UI is accepted headless with Playwright (39 assertions, covering "can you still use the chat after opening the workbench",
 "are those numbers actually computed", and "does it invent a route when the backend is not installed"):
 
 ```bash
@@ -386,4 +386,4 @@ MIT
 
 <!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
-<!-- dsh-mol:ui-assertions 33 -->
+<!-- dsh-mol:ui-assertions 39 -->

@@ -97,7 +97,7 @@ dsh-mol-mcp --selftest          # まず自己診断（MCP クライアントは
 
 <table>
 <tr>
-<td width="33%"><img src="docs/workbench-draw.png" alt="キャンバスタブ"><br><b>① キャンバス</b><br>Ketcher の全機能キャンバス（オーバーレイはドラッグでき、最大化もできる）。「会話に挿入」で SMILES を入力欄に書き込む —— <b>テキストは構造そのものだけで、内部パスは一切混ざらない</b>。</td>
+<td width="33%"><img src="docs/workbench-draw.png" alt="キャンバスタブ"><br><b>① キャンバス</b><br>Ketcher の全機能キャンバス（オーバーレイはドラッグでき、最大化もできる）。<b>SMILES を貼り付ければそのまま描画できる</b>（「クリップボードを読む」でも可）。「会話に挿入」で SMILES を入力欄に書き込む —— <b>テキストは構造そのものだけで、内部パスは一切混ざらない</b>。</td>
 <td width="33%"><img src="docs/workbench-analyze.png" alt="分析タブ"><br><b>② 分析</b><br>左に入力とボタン、右に数値。基礎的な性質 + ドラッグライクネス + 構造アラート + 骨格を一度に全部、すべてローカル RDKit のその場計算。</td>
 <td width="33%"><img src="docs/workbench-retro.png" alt="逆合成タブ"><br><b>③ 逆合成</b><br>目的分子 → 多段ルート。モデルデータが未導入のときは、<b>何をダウンロードしてどこに置くかを教える</b>。計算したふりはしない。</td>
 </tr>
@@ -296,7 +296,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP プロトコルレベルの�
 bash tests/run_all.sh                        # 上の二つ + 自己診断を一気に
 ```
 
-画面は Playwright のヘッドレスで受け入れている（アサーション 33 件。「ワークベンチを開いたあともチャットが使えるか」
+画面は Playwright のヘッドレスで受け入れている（アサーション 39 件。「ワークベンチを開いたあともチャットが使えるか」
 「数値は本当に計算されたものか」「バックエンドが未導入のときにルートを捏造しないか」をカバー）：
 
 ```bash
@@ -381,4 +381,4 @@ MIT
 
 <!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
-<!-- dsh-mol:ui-assertions 33 -->
+<!-- dsh-mol:ui-assertions 39 -->

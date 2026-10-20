@@ -97,7 +97,7 @@ Trois onglets, une molécule :
 
 <table>
 <tr>
-<td width="33%"><img src="docs/workbench-draw.png" alt="Onglet Canevas"><br><b>① Canevas</b><br>Le canevas Ketcher complet (la superposition se déplace et se maximise). « Insérer dans la conversation » écrit le SMILES dans le champ de saisie — <b>le texte, c'est la structure seule, sans aucun chemin interne glissé dedans</b>.</td>
+<td width="33%"><img src="docs/workbench-draw.png" alt="Onglet Canevas"><br><b>① Canevas</b><br>Le canevas Ketcher complet (la superposition se déplace et se maximise). <b>Collez un SMILES et il le dessine</b> (ou cliquez sur « Lire le presse-papiers ») ; ensuite « Insérer dans la conversation » écrit le SMILES dans le champ de saisie — <b>le texte, c'est la structure seule, sans aucun chemin interne glissé dedans</b>.</td>
 <td width="33%"><img src="docs/workbench-analyze.png" alt="Onglet Analyse"><br><b>② Analyse</b><br>Saisie et boutons à gauche, chiffres à droite. Propriétés de base + caractère médicamenteux + alertes structurales + squelette en une seule passe, le tout calculé en direct par RDKit en local.</td>
 <td width="33%"><img src="docs/workbench-retro.png" alt="Onglet Rétrosynthèse"><br><b>③ Rétrosynthèse</b><br>Molécule cible → voie multi-étapes. Sans données de modèle installées, <b>il vous dit quoi télécharger et où le placer</b> au lieu de prétendre avoir calculé quelque chose.</td>
 </tr>
@@ -305,7 +305,7 @@ PYTHONPATH=src python3 tests/mcp_smoke.py    # test de fumée au niveau protocol
 bash tests/run_all.sh                        # les deux ci-dessus plus les autotests, en une seule fois
 ```
 
-L'interface est recettée en mode headless avec Playwright (33 assertions, couvrant « peut-on encore utiliser la conversation après avoir ouvert la station de travail »,
+L'interface est recettée en mode headless avec Playwright (39 assertions, couvrant « peut-on encore utiliser la conversation après avoir ouvert la station de travail »,
 « ces chiffres sont-ils réellement calculés » et « invente-t-il une voie quand le backend n'est pas installé ») :
 
 ```bash
@@ -389,4 +389,4 @@ MIT
 
 <!-- dsh-mol:test-count 71 -->
 <!-- dsh-mol:tool-count 13 -->
-<!-- dsh-mol:ui-assertions 33 -->
+<!-- dsh-mol:ui-assertions 39 -->
