@@ -14,7 +14,7 @@ Pure RDKit. **No network, no API key, no external service.** Also usable as a st
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-72%20passed-brightgreen)
 [![release](https://img.shields.io/github/v/release/Yijian-quiet/dsh-mol?label=release)](https://github.com/Yijian-quiet/dsh-mol/releases/latest)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
@@ -298,7 +298,7 @@ Installing Retro* (source + model data, GB-scale) is covered in **[docs/RETROSYN
 ## Tests
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 71 core cases (zero deps, no pytest needed)
+PYTHONPATH=src python3 tests/run_tests.py    # 72 core cases (zero deps, no pytest needed)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP protocol smoke (real server, real tool calls)
 bash tests/run_all.sh                        # the two above plus self-checks, in one shot
 ```
@@ -385,6 +385,6 @@ Our `[mcp]` extra already pins `<2`; if you installed 2.x by hand, `dsh-mol-mcp`
 
 MIT
 
-<!-- dsh-mol:test-count 71 -->
+<!-- dsh-mol:test-count 72 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 39 -->

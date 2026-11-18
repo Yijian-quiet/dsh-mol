@@ -14,7 +14,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-72%20passed-brightgreen)
 [![release](https://img.shields.io/github/v/release/Yijian-quiet/dsh-mol?label=release)](https://github.com/Yijian-quiet/dsh-mol/releases/latest)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
@@ -292,7 +292,7 @@ Retro* の導入（ソース + モデルデータ、GB 級）は **[docs/RETROSY
 ## テスト
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # コアケース 71 件（依存ゼロ、pytest 不要）
+PYTHONPATH=src python3 tests/run_tests.py    # コアケース 72 件（依存ゼロ、pytest 不要）
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP プロトコルレベルのスモーク（実際にサーバーを起動し、実際にツールを呼ぶ）
 bash tests/run_all.sh                        # 上の二つ + 自己診断を一気に
 ```
@@ -380,6 +380,6 @@ SDK **2.x は `FastMCP` を `MCPServer` に改名**し、API に破壊的変更�
 
 MIT
 
-<!-- dsh-mol:test-count 71 -->
+<!-- dsh-mol:test-count 72 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 39 -->

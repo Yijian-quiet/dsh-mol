@@ -14,7 +14,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/yijian-quiet/dsh-mol)](https://m8ven.ai/mcp/yijian-quiet/dsh-mol?s=readme)
 ![python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![tests](https://img.shields.io/badge/tests-71%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-72%20passed-brightgreen)
 [![release](https://img.shields.io/github/v/release/Yijian-quiet/dsh-mol?label=release)](https://github.com/Yijian-quiet/dsh-mol/releases/latest)
 ![network](https://img.shields.io/badge/network-none%20required-success)
 
@@ -291,7 +291,7 @@ Retro* 설치(소스 + 모델 데이터, GB 단위)는 **[docs/RETROSYNTHESIS.md
 ## 테스트
 
 ```bash
-PYTHONPATH=src python3 tests/run_tests.py    # 핵심 케이스 71개(의존성 제로, pytest 불필요)
+PYTHONPATH=src python3 tests/run_tests.py    # 핵심 케이스 72개(의존성 제로, pytest 불필요)
 PYTHONPATH=src python3 tests/mcp_smoke.py    # MCP 프로토콜 수준 스모크(실제로 서버를 띄우고 도구를 호출한다)
 bash tests/run_all.sh                        # 위의 둘 + 자체 점검을 한 번에
 ```
@@ -379,6 +379,6 @@ SDK **2.x는 `FastMCP`를 `MCPServer`로 이름을 바꿨고** API에 파괴적 
 
 MIT
 
-<!-- dsh-mol:test-count 71 -->
+<!-- dsh-mol:test-count 72 -->
 <!-- dsh-mol:tool-count 13 -->
 <!-- dsh-mol:ui-assertions 39 -->

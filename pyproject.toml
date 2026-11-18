@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dsh-mol"
-version = "0.0.4"
+version = "0.0.5"
 description = "Local-first chemistry toolkit for AI agents (RDKit, no network): SMILES validation, drawing, properties, drug-likeness, conversion, standardisation, batch clean-up | 本地优先的化学工具台"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -16,7 +16,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Topic :: Scientific/Engineering :: Chemistry",
 ]
-dependencies = ["rdkit>=2023.9"]
+dependencies = ["rdkit>=2024.9"]
 
 [project.optional-dependencies]
 # 必须 1.x：2.x 把 FastMCP 改名 MCPServer 且 API 破坏性变更（CI 实测踩到）

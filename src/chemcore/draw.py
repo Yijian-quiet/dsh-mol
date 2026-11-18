@@ -19,8 +19,26 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from rdkit import Chem
-from rdkit.Chem import Draw
-from rdkit.Chem.Draw import rdMolDraw2D
+
+def _rdkit_draw():
+    """惰性取 RDKit 的绘图模块。
+
+    为什么不在模块顶层导入：RDKit 的绘图扩展是编译产物；当它与 NumPy 的 ABI
+    不匹配时（典型：用 NumPy 1.x 编译的 rdkit 撞上 NumPy 2.x），**导入本身就会
+    失败**，报错却是 ``AttributeError: _ARRAY_API not found`` 这种对用户毫无意义
+    的话。更糟的是：本模块在包顶层被导入，于是绘图坏掉会连带整个包（13 个工具）
+    一起导入失败 —— 2026-11-18 就是这么让 MCP 服务反复崩、助手没反应的。
+
+    现在只在真正要画图时才导入，失败则翻译成能照着做的提示：绘图工具不可用，
+    其它工具照常工作。
+    """
+    try:
+        from rdkit.Chem import Draw
+        from rdkit.Chem.Draw import rdMolDraw2D
+    except (ImportError, AttributeError) as exc:  # numpy ABI 不匹配等
+        raise RuntimeError(t("draw_unavailable")) from exc
+    return Draw, rdMolDraw2D
+
 
 from ._rdkit import mol_from_smiles
 from .i18n import t
@@ -183,6 +201,7 @@ def draw(
     mol = mol_from_smiles(smiles)
 
     atoms, bonds = _highlight(mol, highlight_smarts)
+    _, rdMolDraw2D = _rdkit_draw()
 
     # 中文图注不能交给 RDKit（会渲染成豆腐块），PNG 走"先画图、再用 PIL 补图注"
     legend_via_pil = fmt == "png" and has_non_ascii(legend)
@@ -245,6 +264,7 @@ def _compose_grid_pil(
 
     from PIL import Image, ImageDraw
 
+    _, rdMolDraw2D = _rdkit_draw()
     cols = max(1, min(mols_per_row, len(mols)))
     rows = ceil(len(mols) / cols)
     cw, ch = sub_img_size
@@ -286,6 +306,7 @@ def draw_grid(
     「静默丢数据」比报错更危险。图注支持中文（自行排版，不依赖 RDKit 字体）。
     """
     legends_list = list(legends) if legends is not None else []
+    Draw, _ = _rdkit_draw()
     mols, kept_legends, skipped = [], [], []
     for i, smi in enumerate(smiles_list):
         r = check(smi)

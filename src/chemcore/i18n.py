@@ -123,6 +123,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_bad_dst_format": "目标格式须是 {0} 之一，收到 {1}",
         "err_bad_image_format": "只支持 png / svg，收到 {0}",
         "err_no_drawable": "没有任何可画的分子（全部解析失败）",
+        "draw_unavailable": (
+            "RDKit 的绘图模块导入失败（多半是 rdkit 与 NumPy 的 ABI 不匹配：用 NumPy 1.x 编译的 rdkit 撞上了 NumPy 2.x）。"
+            "请升级 rdkit（>=2024.9）或把 numpy 降到 <2 后重试；除绘图外的其它工具不受影响。"
+        ),
         "err_bad_fp": "指纹类型须是 {0} 之一，收到 {1}",
         "err_bad_metric": "metric 只支持 tanimoto / dice",
         "err_mol_parse_labeled": "分子 {0} 的 SMILES 无法解析：{1}",
@@ -287,6 +291,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_bad_dst_format": "Target format must be one of {0}, got {1}",
         "err_bad_image_format": "Only png / svg are supported, got {0}",
         "err_no_drawable": "No drawable molecules (every entry failed to parse)",
+        "draw_unavailable": (
+            "RDKit's drawing extension failed to import (typically an rdkit/NumPy ABI mismatch: rdkit built against NumPy 1.x running on NumPy 2.x). "
+            "Upgrade rdkit to >=2024.9 or pin numpy<2 and retry. Every non-drawing tool keeps working."
+        ),
         "err_bad_fp": "Fingerprint kind must be one of {0}, got {1}",
         "err_bad_metric": "metric supports only tanimoto / dice",
         "err_mol_parse_labeled": "Cannot parse SMILES of molecule {0}: {1}",

@@ -923,6 +923,44 @@ def _actual_ui_assertions():
         return None
 
 
+@case("绘图模块坏掉时：chemcore 仍能导入，其它工具照常，只有画图给人话错误")
+def _():
+    """2026-11-18 事故的回归测试。
+
+    当时 ``draw.py`` 在模块顶层 ``from rdkit.Chem import Draw``，rdkit 用 NumPy 1.x
+    编译、环境是 NumPy 2.x → 导入即 AttributeError。因为包顶层又导入了 draw，
+    结果 **13 个工具全部无法启动**，MCP 服务反复崩溃、助手没有响应。
+
+    现在用子进程模拟"绘图模块导入即失败"：chemcore 必须还能导入、性质计算必须
+    正常；只有画图抛 RuntimeError，且信息里要能看出是 rdkit/NumPy 的问题。
+    """
+    import subprocess
+    import textwrap
+
+    code = textwrap.dedent("""
+        import sys
+        sys.modules["rdkit.Chem.Draw"] = None      # 让 `from rdkit.Chem import Draw` 直接失败
+        import chemcore
+        assert sys.modules.get("rdkit.Chem.Draw") is None
+        assert chemcore.__version__, "版本号缺失"
+        assert chemcore.properties("CCO")["formula"] == "C2H6O", "性质计算被绘图模块拖累了"
+        assert callable(chemcore.draw), "draw 应该仍然可调用（惰性导出）"
+        try:
+            chemcore.draw("CCO")
+        except RuntimeError as exc:
+            msg = str(exc)
+            assert "rdkit" in msg.lower() and ("numpy" in msg.lower() or "abi" in msg.lower()), msg
+        else:
+            raise AssertionError("绘图不可用时应抛 RuntimeError，而不是成功或抛别的异常")
+        print("OK")
+    """)
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.path.join(os.path.dirname(__file__), "..", "src")
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=120)
+    assert proc.returncode == 0, f"子进程失败：{proc.stderr[-800:]}"
+    assert "OK" in proc.stdout, proc.stdout
+
+
 def check_readme_count():
     """README 里写的数字必须与实际一致 —— 文档数字最容易悄悄过期。
 
